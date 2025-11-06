@@ -1,0 +1,43 @@
+default flow: debug
+
+config {
+    implicit_dir_creation: true
+    platform: windows
+}
+
+action debug_compile: dynamic(time)
+{
+    command: gcc $(in) -g -o $(out)
+    default out: a.out              
+}
+
+action debug_link: dynamic(time)
+{
+    command: gcc $(in) -o $(out)
+    default out: a.out              
+}
+
+pipe debug_objects: debug_compile
+{
+    search: Source -> Build/debug/objects
+    map
+    {
+        main.c -> main.o
+        **/*.c -> format($(dir), suffix=_, join="").o
+    }
+}
+
+pipe debug_link: debug_link
+{
+    search: Build/debug/objects -> Build/debug/bin
+    map
+    {
+        list(**?/*.o) -> main
+    }
+}
+
+flow debug
+{
+    debug_objects
+    debug_link
+}

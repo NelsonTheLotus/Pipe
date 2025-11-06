@@ -1,0 +1,54 @@
+default pipe: build
+
+action compile: dynamic = hash // or hash
+{
+    gcc $(in) -O3 -g -o $(out)
+} //dynamic = timstamp, hash
+
+action link: static
+{
+    gcc $(in) -o $(out)
+}
+
+action zig_compile
+{
+    zig cc -target $(target) -I$(include) $(in) -o $(out)
+    default target: x86_64-windows // keyword default
+}
+
+
+flow build: clean <dependency>
+{
+    #compile
+    #link
+}
+
+pipe zig_compile: zig_compile
+{
+    zig_compile
+    @depends: <global dependencies>
+    @target  = x86_64-windows
+    @include = libs/SDL/include
+    main.zig -> Zig/main.o : - //remove global dependencies
+}
+
+pipe zig_compile: Source -> Build
+{
+    @include = libs/SDL/include
+    ./zigsrc/**/*.c -> Zig/*.o : !<dependency>
+} 
+
+pipe compile: Source -> Build
+{
+    main.c -> main.o: + <dependency> (keep global dependency and add yours)
+}
+
+pipe link: Build
+{
+    main.o -> bin/app.exe : Math //(removes all global dependencies and adds Math. Equivalent to - Math)
+    - lib = -LMath
+}
+
+// pluging dependecy files (*.d files)?
+// operations on tree structure operator (**)?
+// Custom options for a specific pipeline?
