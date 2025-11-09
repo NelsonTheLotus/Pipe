@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <array>
 
 enum OptionType : int
 {
@@ -28,5 +29,14 @@ struct Option
     std::string value;
 };
 
+struct Setting
+{
+    OptionType type;
+    std::string key;
+    std::string value;
+    struct Setting* previousSetting;
+};
+
 void printHelp();
-std::vector<Option> parseOptions(int &argCount, const std::vector<std::string> &arguments);
+void clearSettings(std::array<void*, 12> settings);
+std::array<void*, 12> getSettings(int &argCount, char* arguments[]);
