@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
     // }
 
     // printf("NONE: %p\n", settings.errors);
-    // printf("FLOW: %p\n", settings.flow);
+    // printf("FLOW: %s\n", settings.flows[0]);
     // printf("HELP: %p\n", settings[HELP]);
     // printf("CONFIG: %p\n", settings[CONFIG]);
     // printf("STATUS: %p\n", settings[STATUS]);
@@ -26,9 +26,10 @@ int main(int argc, char* argv[])
     // printf("ATOMIC: %p\n", settings[ATOMIC]);
     // printf("VERBOSE: %p\n", settings[VERBOSE]);
     // printf("PARSE: %p\n", settings[PARSE]);
-    // printf("DEFINE: %p\n", settings[DEFINE]);
-    printf("JOBS: %u\n", settings.jobs);
+    // printf("DEFINE: %s\n", settings.defines[0]);
+    // printf("JOBS: %u\n", settings.jobs);
     // printf("INPUT: %p\n", settings[INPUT]);
 
+    clearConfig(settings);
     return 0;
 }

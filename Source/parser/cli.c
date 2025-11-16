@@ -74,6 +74,10 @@ Parameter getNextParameter(const int argc, int *index, const char* const argv[])
 }
 
 
+/*
+ * Iterates through CLI options and classifies them into their 
+ * corresponding setting in the Config structure. 
+*/
 Config parseSettings(int argc, const char* const argv[])
 {
     int counter = 0;
@@ -81,6 +85,7 @@ Config parseSettings(int argc, const char* const argv[])
     {
         NULL,   // errors
         NULL,   // flows
+        0,      // flow_count
         false,  // help
         false,  // doConfig
         NULL,   // statuses
@@ -89,36 +94,77 @@ Config parseSettings(int argc, const char* const argv[])
         false,  // verbose
         'd',    // parse
         NULL,   // defines
+        0,      // define_count
         0,      // jobs
         NULL    // input file, gets interpreted as DEFAULT_INPUT if null
     };
 
     bool endReached = false;
+    const char ***list_ptr = NULL;
+    size_t *list_count = NULL;
     while(!endReached)
-    {   // TODO: add logic for FLOW, STATUS, DEFINE and ERROR (lists)
+    {
         Parameter nextParam = getNextParameter(argc, &counter, argv);
         switch (nextParam.type)
         {
-        case FLOW: break;
         case HELP: retConf.help = true; break;
         case CONFIG: retConf.doConfig = true; break;
         case CLEAR: retConf.clear = true; break;
         case ATOMIC: retConf.atomic = true; break;
         case VERBOSE: retConf.verbose = true; break;
-        case STATUS: break;
         case PARSE: retConf.parse = nextParam.argument[0]; break;
-        case DEFINE: break;
         case JOBS: retConf.jobs = (unsigned int)strtoul(nextParam.argument, NULL, 10); break;
         case INPUT: retConf.inputFile = nextParam.argument; break;
+        
+        case FLOW:
+            list_ptr = &(retConf.flows);
+            list_count = &(retConf.flow_count);
+            goto extend_list;
+
+        case DEFINE:
+            list_ptr = &(retConf.defines);
+            list_count = &(retConf.define_count);
+        extend_list:
+            const char **tmp_list = realloc(*list_ptr, ++(*list_count) * sizeof(*tmp_list));
+            if(!tmp_list) goto error;
+            tmp_list[(*list_count)-1] = nextParam.argument;
+            *list_ptr = tmp_list;
+            break;
+
+        case STATUS:
+            size_t statlen = 0;
+            if(retConf.statuses != NULL) statlen = strlen(retConf.statuses); // count null char
+            char *tmp_char = realloc(retConf.statuses, statlen+2); // add a charachter + null char
+            if(!tmp_char) goto error;
+            tmp_char[statlen+1] = '\0';
+            tmp_char[statlen] = nextParam.argument[0];
+            retConf.statuses = tmp_char;
+            break;
+
         case END:
             endReached = true;
             break;
 
+        error:
         case ERROR: // same as default
         default:
+            printf("ERROR!!\n");
             break;
         }
     }
 
     return retConf;
+}
+
+
+void clearConfig(Config config)
+{
+    if(config.errors != NULL) 0;
+
+    if(config.flows != NULL)
+        free(config.flows);
+    if(config.statuses != NULL)
+        free(config.statuses);
+    if(config.defines != NULL)
+        free(config.defines);
 }

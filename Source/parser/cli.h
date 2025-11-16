@@ -34,10 +34,19 @@ struct Parameter
 }Parameter;
 
 
+typedef
+struct ConfigError
+{
+    const char* msg;
+    struct ConfigError *next;
+} ConfigError;
+
+
 typedef 
 struct Config{
-    char *errors;   // parse errors ( TODO: replace char -> parseError )
+    ConfigError *errors;   // parse errors ( TODO: replace char -> parseError )
     const char **flows; // list of <const char[]> to run
+    size_t flow_count;
     bool help;
     bool doConfig;
     char *statuses; //single character array
@@ -45,10 +54,12 @@ struct Config{
     bool atomic;
     bool verbose;
     char parse; // d: default, s: static, e: emit
-    Variable *defines;
+    const char **defines; // array of "key=value" strings
+    size_t define_count;
     unsigned int jobs;
     const char *inputFile;
 }Config;
 
 
 Config parseSettings(int argc, const char* const argv[]);
+void clearConfig(Config config);
