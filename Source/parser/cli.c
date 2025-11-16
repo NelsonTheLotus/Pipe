@@ -172,3 +172,55 @@ void clearConfig(Config config)
     if(config.defines != NULL)
         free(config.defines);
 }
+
+
+
+/*
+ * Print help text
+*/
+void printHelp()
+{
+    
+    printf("Usage: pipe [<flow>] [<options>] [-f <pipe_file>]\n\n");
+
+    printf("By default, if <flow> is not specified, Pipe will run the flow\n");
+    printf("marked as default, or the first occuring flow.\n\n");
+
+    printf("If no <pipe_file> is specified, Pipe searches the cache for\n"); 
+    printf("the previously used pipe file. If not found, it then searches\n");
+    printf("the CWD for a file named 'pipefile'. If not found found, it fails.\n\n");
+
+    printf("Options include:\n");
+    printf("   -h, --help                      : Show this text.\n");
+    printf("   -c, --config                    : Reconfigure the pipe file. Config is automatically\n");
+    printf("                                     run if pipe file is newer than cache.\n");
+    printf("   -s, --status [<state>]          : Displays pipes cache state. \n");
+    printf("                                     State may be 'config', ....\n");
+    printf("                                     If no state is specified, all states will be shown.\n");
+    printf("   --clear                         : Clear all cache and data.\n");
+    printf("   -a, --atomic                    : Run pipe, ignoring all cache states.\n");
+    printf("   -v, --verbose                   : Enable verbose logging.\n");
+    printf("   -p, --parse [s|e]               : Parse and validate pipe file.\n");
+    printf("                                     If run with 's', do static analysis only.\n");
+    printf("                                     If run with 'e', emit generated artifacts to cache.\n");
+    printf("                                     If validation fails, cache is not altered.\n");
+    printf("                                     If no parameter is declared, defaults to e.\n");
+    printf("   -d, --define <var>[=<value>]    : Define a variable to be used during execution.\n");
+    printf("                                     Defined variable has the same priority as a CONFIG,\n");
+    printf("                                     but takes priority over config-stage variables.\n");
+    printf("   -j. --jobs <N>                  : Run pipe using at most N jobs. If <N> is omitted,\n");
+    printf("                                     use as many jbos as necessary. Default is 1.\n");
+    printf("   -f. --file <pipe_file>          : Specifies the input Pipe file.\n\n");
+
+    printf("When declaring option parameters, if the option is declared using it's single charachter form,\n");
+    printf("the parameter may be declared with no whitespace seperation. For example, the following\n");
+    printf("options are valid and produce an identical result:\n");
+    printf("   -sconfig\n");
+    printf("   --status config\n");
+    printf("   -s config\n\n");
+
+    printf("However, the following is not allowed:\n");
+    printf("   --statusconfig\n\n");
+
+    return;
+}

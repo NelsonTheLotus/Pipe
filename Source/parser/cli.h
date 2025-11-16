@@ -62,3 +62,5 @@ struct Config{
 
 Config parseSettings(int argc, const char* const argv[]);
 void clearConfig(Config config);
+
+void printHelp();
