@@ -115,7 +115,7 @@ Config parseSettings(int argc, const char* const argv[])
         case PARSE: retConf.parse = nextParam.argument[0]; break;
         case JOBS: retConf.jobs = (unsigned int)strtoul(nextParam.argument, NULL, 10); break;
         case INPUT: retConf.inputFile = nextParam.argument; break;
-        
+
         case FLOW:
             list_ptr = &(retConf.flows);
             list_count = &(retConf.flow_count);
@@ -157,6 +157,10 @@ Config parseSettings(int argc, const char* const argv[])
 }
 
 
+/*
+ * Free space that was allocated on the heap to store config.
+ *
+*/
 void clearConfig(Config config)
 {
     if(config.errors != NULL) 0;
