@@ -46,7 +46,7 @@ Parameter getNextParameter(const int argc, int *index, const char* const argv[])
 {
     if(index == NULL) index = (int*)&index; // make valid ptr pointing to null. Works because size(ptr) >= size(int)
     if(*index == 0) (*index)++; // ignore program call
-    if(*index >= argc) return (Parameter){END, NULL}; // no args  to parse
+    if(*index >= argc) return (Parameter){END, NULL}; // no args to parse -> END reached
 
     const char *option = argv[(*index)++];
     if(strlen(option) <= 1) return (Parameter){FLOW, option}; // cannot be an option, cause option is at least 2.
@@ -145,6 +145,7 @@ Config parseSettings(int argc, const char* const argv[])
             endReached = true;
             break;
 
+        // TODO:
         error:
         case ERROR: // same as default
         default:
@@ -183,8 +184,8 @@ void printHelp()
     
     printf("Usage: pipe [<flow>] [<options>] [-f <pipe_file>]\n\n");
 
-    printf("By default, if <flow> is not specified, Pipe will run the flow\n");
-    printf("marked as default, or the first occuring flow.\n\n");
+    printf("By default, if no <flow> is not specified, Pipe will run the flow\n");
+    printf("marked as default, or the first occuring flow if none defined.\n\n");
 
     printf("If no <pipe_file> is specified, Pipe searches the cache for\n"); 
     printf("the previously used pipe file. If not found, it then searches\n");

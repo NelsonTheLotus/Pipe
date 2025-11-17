@@ -2,33 +2,56 @@
 
 #include <stdio.h>
 
+void printStatuses(const char* statusString)
+{
+    printf("PRINTING STAUSES: %s\n", statusString);
+}
+
+void clearCache()
+{
+    printf("CACHE CLEARED\n");
+}
+
+void loadCache()
+{
+    printf("LOADING CACHE...\n"); // determine weather cache is valid or stale. (kinda)
+}
+
 
 
 int main(int argc, char* argv[])
 {
     Config settings = parseSettings(argc, (const char* const*)argv);
 
-    // int counter = 0;
-    // int *pc = &counter;
-    // while(*pc <= 10)
-    // {
-    //     (*pc)++;
-    //     printf("POINTER: %p | ", pc);
-    //     printf("ITERATION: %d\n", counter);
-    // }
+    bool doSyntax = false;  // Weather to check the file syntax.
+    bool doParse = false;   // weather the file must be parsed. Automatic if file is newer than cache.
+    bool doConfig = false;  // weather config should be reparsed. auto-set if doParse.
+    bool doRun = false;     // weather to actually run the file
 
-    // printf("NONE: %p\n", settings.errors);
-    // printf("FLOW: %s\n", settings.flows[0]);
-    // printf("HELP: %p\n", settings[HELP]);
-    // printf("CONFIG: %p\n", settings[CONFIG]);
-    // printf("STATUS: %p\n", settings[STATUS]);
-    // printf("CLEAR: %p\n", settings[CLEAR]);
-    // printf("ATOMIC: %p\n", settings[ATOMIC]);
-    // printf("VERBOSE: %p\n", settings[VERBOSE]);
-    // printf("PARSE: %p\n", settings[PARSE]);
-    // printf("DEFINE: %s\n", settings.defines[0]);
-    // printf("JOBS: %u\n", settings.jobs);
-    // printf("INPUT: %p\n", settings[INPUT]);
+    if(settings.help) printHelp();
+
+    loadCache();
+    if(settings.statuses != NULL)
+        printStatuses(settings.statuses);
+    else if(settings.clear)
+        clearCache();
+    else
+    {
+        //TODO: add logic
+        doParse = true; 
+        doConfig = true;
+        doRun = true;
+    }
+
+    // if parseSpec: parse, NOConf
+
+    if(doParse)
+        printf("PARSING...\n");
+    if(doConfig)
+        printf("CONFIGURING...\n");
+    if(doRun)
+        printf("RUNNING...\n");
+    
 
     clearConfig(settings);
     return 0;
