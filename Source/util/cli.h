@@ -3,6 +3,9 @@
 #include "../global.h"
 
 
+#ifndef UTIL_PUBLIC
+// folder-private code
+
 typedef 
 enum OptionType
 {
@@ -31,6 +34,9 @@ struct Parameter
     OptionType type;
     const char *argument;
 }Parameter;
+
+#endif
+// public code
 
 
 typedef
