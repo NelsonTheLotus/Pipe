@@ -6,6 +6,7 @@ mkdir -p Build/objects 2>/dev/null
 # util
 mkdir -p Build/objects/util 2>/dev/null
 gcc -c Source/util/cli.c -o Build/objects/util/cli.o
+gcc -c Source/util/error.c -o Build/objects/util/error.o
 
 
 # main
