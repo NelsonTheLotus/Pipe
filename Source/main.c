@@ -1,4 +1,8 @@
 #include "util/util.h"
+#include "load/load.h"
+#include "read/read.h"
+#include "process/process.h"
+#include "execute/execute.h"
 
 #include <stdio.h>
 
@@ -30,7 +34,7 @@ int main(int argc, char* argv[])
 
     if(settings.help) printHelp();
 
-    loadCache();
+    loadCache(); // framework functions
     if(settings.statuses != NULL)
         printStatuses(settings.statuses);
     else if(settings.clear)
