@@ -158,7 +158,6 @@ void log_msg(const char* msg, LogLevel lvl, LogType type)
     else{
         newEntry->msg = msg;
         newEntry->level = lvl;
-        // printf("LOGGING with type: %d\n", type);
         newEntry->type = type;
         newEntry->nextEntry = NULL;
     }
