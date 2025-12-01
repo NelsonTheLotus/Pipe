@@ -13,12 +13,12 @@ void printStatuses(const char* statusString)
 
 void clearCache()
 {
-    printf("CACHE CLEARED\n");
+    log_msg("CACHE CLEARED", WARNING, SYSTEM);
 }
 
 void loadCache()
 {
-    printf("LOADING CACHE...\n"); // determine weather cache is valid or stale. (kinda)
+    log_msg("LOADING CACHE...", INFO, NONE); // determine weather cache is valid or stale. (kinda)
 }
 
 
@@ -50,13 +50,14 @@ int main(int argc, char* argv[])
     // if parseSpec: parse, NOConf
 
     if(doParse)
-        printf("PARSING...\n");
+        log_msg("PARSING...", INFO, SYSTEM);
     if(doConfig)
-        printf("CONFIGURING...\n");
+        log_msg("CONFIGURING...", INFO, NONE);
     if(doRun)
-        printf("RUNNING...\n");
+        log_msg("RUNNING...", WARNING, SYSTEM);
     
 
     clearConfig(settings);
+    close_logging();
     return 0;
 }
