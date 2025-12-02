@@ -13,26 +13,35 @@ typedef enum LogLevel
     INFO = 1,
     WARNING = 2,
     CRITICAL = 3,
-    FATAL = 4
+    FATAL = 4,
 
 } LogLevel;
 
-typedef enum LogType
+typedef enum LogSource
 {
 #ifdef LOG_INTERNAL         // Don't allow access unless it's log.c
     STATIC_FALLBACK = -1,    // Static fallback logs
 #endif
     NONE = 0,
     SYSTEM = 1,
+    CLI = 2,
 
-} LogType;
+} LogSource;
 
 
 
 // ==== Main Interface functions ====
 
 //* Create a new log
-void log_msg(const char* msg, LogLevel lvl, LogType type);
+void log_full(const char* msg, LogLevel lvl, LogSource source);
+//* log a message (INFO; NONE)
+void log_msg(const char* msg);
+//* log a messgae with <lvl>
+void log_l(const char* msg, LogLevel lvl);
+//* log a message with type <source
+void log_t(const char* msg, LogSource source);
+//* Log a fatal error
+void log_fatal(const char* msg, LogSource source);
 
 //* Finnish logging gracefully
 void close_logging();

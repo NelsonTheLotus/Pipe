@@ -14,7 +14,7 @@ typedef struct LogEntry
 {
     const char* msg;
     LogLevel level;
-    LogType type;
+    LogSource source;
     clock_t timestamp;
     struct LogEntry* nextEntry;
 
@@ -36,7 +36,6 @@ typedef struct
     callback_ptr* callbackList; // list of callback cleanup functions
     size_t callbackSize;
     size_t nextCallbackIndex;
-    // TODO: cleanup callback
 
 } LogStack;
 
@@ -53,6 +52,7 @@ static const char* const LS_fatal = "fatal";
 static const char* const TS_none = "";
 static const char* const TS_system = "system";
 static const char* const TS_static_fallback = "static fallback";
+static const char* const TS_cli = "cli";
 
 // log stack
 static LogStack mainStack = (LogStack){
@@ -79,9 +79,9 @@ static LogEntry fatal_job_alloc =
 
 // ==== Internal Helpers ====
 
-const char* level_to_str(LogLevel level)
+const char* lvl_to_str(LogLevel lvl)
 {
-    switch (level)
+    switch (lvl)
     {
         case VERBOSE: return LS_verbose;
         case INFO: return LS_info;
@@ -95,13 +95,14 @@ const char* level_to_str(LogLevel level)
     return "VOID";
 }
 
-const char* type_to_str(LogType type)
+const char* src_to_str(LogSource src)
 {
-    switch (type)
+    switch (src)
     {
         case STATIC_FALLBACK: return TS_static_fallback;
         case NONE: return TS_none;
         case SYSTEM: return TS_system;
+        case CLI: return TS_cli;
         default:
             return "unknown";
     }
@@ -109,34 +110,6 @@ const char* type_to_str(LogType type)
     return "unknown";
 }
 
-
-//* Prints formatted output to desired outputs
-void print_log(const LogEntry* log)
-{
-    if(log == NULL) return;
-
-    // TODO: check if supress logging, log to file, log to std
-    // TODO: Add colors to STD
-    // TODO: improve timestamp printing
-    printf("%ju - [%s] %s: %s\n", log->timestamp, level_to_str(log->level), type_to_str(log->type), log->msg);
-    return;
-}
-
-//* Log a static error
-void log_static(LogEntry* staticLog)
-{
-    // set time of logging
-    staticLog->timestamp = clock();
-
-    // append new log
-    if(mainStack.stackTail != NULL)
-        mainStack.stackTail->nextEntry = staticLog;
-    mainStack.stackTail = staticLog;
-
-    // display log
-    print_log((const LogEntry*) staticLog);
-    return;
-}
 
 //* Clear the log stack
 void free_log_stack()
@@ -147,7 +120,7 @@ void free_log_stack()
     {
         previousEntry = currentEntry;
         currentEntry = currentEntry->nextEntry;
-        if(previousEntry->type = STATIC_FALLBACK) continue; // don't free static logs
+        if(previousEntry->source = STATIC_FALLBACK) continue; // don't free static logs
         free(previousEntry);
     }
     return;
@@ -168,7 +141,6 @@ void cleanup(int EXITCODE)
     for(size_t jobID = 0; jobID < mainStack.callbackSize; jobID++)
     {
         callback_ptr cleanupFn = mainStack.callbackList[jobID];
-        printf("RUNNING CLEANUP: %p\n", cleanupFn);
         if(cleanupFn == NULL)
             continue;
         cleanupFn();  // call cleanup fn
@@ -182,11 +154,42 @@ void cleanup(int EXITCODE)
     return;
 }
 
+//* Prints formatted output to desired outputs
+void print_log(const LogEntry* log)
+{
+    if(log == NULL) return;
+
+    // TODO: check if supress logging, log to file, log to std
+    // TODO: Add colors to STD
+    // TODO: improve timestamp printing
+    printf("%ju - [%s] %s: %s\n", log->timestamp, lvl_to_str(log->level), src_to_str(log->source), log->msg);
+    return;
+}
+
+//* Shchedule a new log from entry
+void log_entry(LogEntry* logEntry)
+{
+    // Set time
+    logEntry->timestamp = clock();
+
+    // append new log
+    if(mainStack.stackTail != NULL)
+        mainStack.stackTail->nextEntry = logEntry;
+    mainStack.stackTail = logEntry;
+
+    // display log
+    print_log((const LogEntry*)logEntry);
+    if(logEntry->level == FATAL)
+        cleanup(-1);
+
+    return;
+}
+
+
 
 // ==== Main Interface ====
 
-//* Generates a new LogEntry and submits it.
-void log_msg(const char* msg, LogLevel lvl, LogType type)
+void log_full(const char* msg, LogLevel lvl, LogSource src)
 {
     LogEntry *newEntry = (LogEntry*)malloc(sizeof(LogEntry));
 
@@ -194,31 +197,42 @@ void log_msg(const char* msg, LogLevel lvl, LogType type)
     //   - log a fatal malloc instead
     if(newEntry == NULL)
     {
-        log_static(&fatal_malloc_log);
+        log_entry(&fatal_malloc_log);
         return;
     }
 
     newEntry->msg = msg;
     newEntry->level = lvl;
-    newEntry->type = type;
+    newEntry->source = src;
     newEntry->nextEntry = NULL;
     
-    // set time of logging
-    newEntry->timestamp = clock();
-
-    // append new log
-    if(mainStack.stackTail != NULL)
-        mainStack.stackTail->nextEntry = newEntry;
-    mainStack.stackTail = newEntry;
-
-    // display log
-    print_log(newEntry);
-    if(newEntry->level == FATAL)
-        cleanup(-1);
-
+    log_entry(newEntry);
     return;
 }
-//TODO: Add more logging functions?
+
+void log_msg(const char* msg)
+{
+    log_full(msg, INFO, NONE);
+    return;
+}
+
+void log_l(const char* msg, LogLevel lvl)
+{
+    log_full(msg, lvl, NONE);
+    return;
+}
+
+void log_t(const char* msg, LogSource src)
+{
+    log_full(msg, INFO, src);
+    return;
+}
+
+void log_fatal(const char* msg, LogSource src)
+{
+    log_full(msg, FATAL, src);
+    return;
+}
 
 void close_logging()
 {
@@ -289,7 +303,7 @@ size_t register_cleanup(callback_ptr newCallback)
         if(newCallbackList == NULL)
         {
             newCallback();  // do the cleanup fn that was not allocated and will hence not be run
-            log_static(&fatal_job_alloc);
+            log_entry(&fatal_job_alloc);
             return 0;       // 0 is error
         }
     }
@@ -322,5 +336,5 @@ bool remove_cleanup(size_t jobID)
 // TODO: Cleanup callbacks stack manipulation - (DONE)
 // TODO: Non-fatal cleanup + fatal cleanup ---- (DONE)
 // TODO: Add file+stream logging --------------
-// TODO: Add more logging interface functions -
+// TODO: Add more logging interface functions - (DONE)
 

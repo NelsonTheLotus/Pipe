@@ -3,53 +3,8 @@
 #include "../global.h"
 
 
-#ifndef UTIL_PUBLIC
-// folder-private code
-
-typedef 
-enum OptionType
-{
-    ERROR = -1,
-    END,    // ending block
-
-    FLOW,   // default no arg
-
-    HELP,   // -h, --help
-    CONFIG, // -c, --config
-    CLEAR,  // --clear
-    ATOMIC, // -a, --atomic
-    VERBOSE,// -v, --verbose
-    STATUS, // -s, --status <state>
-    PARSE,  // -p, --parse [s|e]
-    DEFINE, // -d, --define <var>[=<value>]
-    JOBS,   // -j, --jobs <N> 
-    INPUT   // -f, --file <input_file>      ( FILE is already used )
-}OptionType;
-
-
-
-typedef 
-struct Parameter
-{
-    OptionType type;
-    const char *argument;
-}Parameter;
-
-#endif
-// public code
-
-
-typedef
-struct ConfigError
-{
-    const char* msg;
-    struct ConfigError *next;
-} ConfigError;
-
-
 typedef 
 struct Config{
-    ConfigError *errors;   // parse errors ( TODO: replace char -> parseError )
     const char **flows; // list of <const char[]> to run
     size_t flow_count;
     bool help;
@@ -66,7 +21,7 @@ struct Config{
 }Config;
 
 
-Config parseSettings(int argc, const char* const argv[]);
-void clearConfig(Config config);
+Config* parse_settings(int argc, const char* const argv[]);
+void clear_config();
 
-void printHelp();
+void print_help();

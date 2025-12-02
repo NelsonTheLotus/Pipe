@@ -1,9 +1,65 @@
 #include "cli.h"
 
+#include "log.h"
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 
+
+
+// ==== Internal structs ====
+
+typedef enum OptionType
+{
+    C_ERROR = -1,
+    C_END,    // ending block
+
+    C_FLOW,   // default no arg
+
+    C_HELP,   // -h, --help
+    C_CONFIG, // -c, --config
+    C_CLEAR,  // --clear
+    C_ATOMIC, // -a, --atomic
+    C_VERBOSE,// -v, --verbose
+    C_STATUS, // -s, --status <state>
+    C_PARSE,  // -p, --parse [s|e]
+    C_DEFINE, // -d, --define <var>[=<value>]
+    C_JOBS,   // -j, --jobs <N> 
+    C_INPUT   // -f, --file <input_file>      ( FILE is already used )
+}OptionType;
+
+
+typedef struct Parameter
+{
+    OptionType type;
+    const char *argument;
+}Parameter;
+
+
+
+// ==== Static configuration ====
+
+static Config static_config =
+{
+    .flows        = NULL,
+    .flow_count   = 0,
+    .help         = false,
+    .doConfig     = false,
+    .statuses     = NULL,
+    .clear        = false,
+    .atomic       = false,
+    .verbose      = false,
+    .parse        = 'd',
+    .defines      = NULL,
+    .define_count = 0,
+    .jobs         = 0,
+    .inputFile    = NULL    // NULL -> gets interpreted as DEFAULT_INPUT 
+};
+
+
+
+// ==== Internal Helpers ====
 
 /*
  * Determines the kind of option declared, 
@@ -11,46 +67,49 @@
  * Return error if no match found.
  * Option must point to the first char of the option, no a tack
 */
-OptionType getOptionType(const char* option, bool isDoubleTack)
+OptionType get_option_type(const char* option, bool isDoubleTack)
 {
     switch (option[0])
     {
-    case 'h': return HELP;
+    case 'h': return C_HELP;
     case 'c':
-        if(!isDoubleTack) return CONFIG; // --clear is only DoubleTack 
-        if(option[1] == '\0') return ERROR;
-        if(option[1] == 'o') return CONFIG; // second letter is 'o' => config option
-        return CLEAR;                       // second letter is NOT 'o' (can check for 'l', but not necessary) => clear
-    case 's': return STATUS;
-    case 'a': return ATOMIC;
-    case 'v': return VERBOSE;
-    case 'p': return PARSE;
-    case 'd': return DEFINE;
-    case 'j': return JOBS;
-    case 'f': return INPUT;
+        if(!isDoubleTack) return C_CONFIG; // --clear is only DoubleTack 
+        if(option[1] == '\0') return C_ERROR;
+        if(option[1] == 'o') return C_CONFIG; // second letter is 'o' => config option
+        return C_CLEAR;                       // second letter is NOT 'o' (can check for 'l', but not necessary) => clear
+    case 's': return C_STATUS;
+    case 'a': return C_ATOMIC;
+    case 'v': return C_VERBOSE;
+    case 'p': return C_PARSE;
+    case 'd': return C_DEFINE;
+    case 'j': return C_JOBS;
+    case 'f': return C_INPUT;
     
     default:
-        return ERROR;
+        return C_ERROR;
     }
 
-    return END;     // failsafe
+    return C_END;     // failsafe
 }
 
+
+
+// ==== Interface ====
 
 /*
  * Fetches the next parameter from the list, starting at index.
  * Returns a parameter with the parameter type and it's argument, if any.
  * Increments the index variable so that it can be used in the next iteration.
 */
-Parameter getNextParameter(const int argc, int *index, const char* const argv[])
+Parameter get_next_parameter(const int argc, int *index, const char* const argv[])
 {
     if(index == NULL) index = (int*)&index; // make valid ptr pointing to null. Works because size(ptr) >= size(int)
     if(*index == 0) (*index)++; // ignore program call
-    if(*index >= argc) return (Parameter){END, NULL}; // no args to parse -> END reached
+    if(*index >= argc) return (Parameter){C_END, NULL}; // no args to parse -> END reached
 
     const char *option = argv[(*index)++];
-    if(strlen(option) <= 1) return (Parameter){FLOW, option}; // cannot be an option, cause option is at least 2.
-    if(option[0] != '-') return (Parameter){FLOW, option};  // no tacks => flow
+    if(strlen(option) <= 1) return (Parameter){C_FLOW, option}; // cannot be an option, cause option is at least 2.
+    if(option[0] != '-') return (Parameter){C_FLOW, option};  // no tacks => flow
 
     bool isDoubleTack = true;
     const char* argValue = NULL;
@@ -63,8 +122,8 @@ Parameter getNextParameter(const int argc, int *index, const char* const argv[])
     option = &option[1];
 
     // determine option and part-value
-    OptionType paramType = getOptionType(option, isDoubleTack);
-    if(paramType <= VERBOSE) return (Parameter){paramType, argValue};
+    OptionType paramType = get_option_type(option, isDoubleTack);
+    if(paramType <= C_VERBOSE) return (Parameter){paramType, argValue};
 
     // search for arg value at next option if not already assigned
     if(*index < argc && argValue == NULL && argv[*index][0] != '-')
@@ -78,52 +137,35 @@ Parameter getNextParameter(const int argc, int *index, const char* const argv[])
  * Iterates through CLI options and classifies them into their 
  * corresponding setting in the Config structure. 
 */
-Config parseSettings(int argc, const char* const argv[])
+Config* parse_settings(int argc, const char* const argv[])
 {
     int counter = 0;
-    Config retConf = (Config)
-    {
-        NULL,   // errors
-        NULL,   // flows
-        0,      // flow_count
-        false,  // help
-        false,  // doConfig
-        NULL,   // statuses
-        false,  // clear
-        false,  // atomic
-        false,  // verbose
-        'd',    // parse
-        NULL,   // defines
-        0,      // define_count
-        0,      // jobs
-        NULL    // input file, gets interpreted as DEFAULT_INPUT if null
-    };
 
     bool endReached = false;
     const char ***list_ptr = NULL;
     size_t *list_count = NULL;
     while(!endReached)
     {
-        Parameter nextParam = getNextParameter(argc, &counter, argv);
+        Parameter nextParam = get_next_parameter(argc, &counter, argv);
         switch (nextParam.type)
         {
-        case HELP: retConf.help = true; break;
-        case CONFIG: retConf.doConfig = true; break;
-        case CLEAR: retConf.clear = true; break;
-        case ATOMIC: retConf.atomic = true; break;
-        case VERBOSE: retConf.verbose = true; break;
-        case PARSE: retConf.parse = nextParam.argument[0]; break;
-        case JOBS: retConf.jobs = (unsigned int)strtoul(nextParam.argument, NULL, 10); break;
-        case INPUT: retConf.inputFile = nextParam.argument; break;
+        case C_HELP: static_config.help = true; break;
+        case C_CONFIG: static_config.doConfig = true; break;
+        case C_CLEAR: static_config.clear = true; break;
+        case C_ATOMIC: static_config.atomic = true; break;
+        case C_VERBOSE: static_config.verbose = true; break;
+        case C_PARSE: static_config.parse = nextParam.argument[0]; break;
+        case C_JOBS: static_config.jobs = (unsigned int)strtoul(nextParam.argument, NULL, 10); break;
+        case C_INPUT: static_config.inputFile = nextParam.argument; break;
 
-        case FLOW:
-            list_ptr = &(retConf.flows);
-            list_count = &(retConf.flow_count);
+        case C_FLOW:
+            list_ptr = &(static_config.flows);
+            list_count = &(static_config.flow_count);
             goto extend_list;
 
-        case DEFINE:
-            list_ptr = &(retConf.defines);
-            list_count = &(retConf.define_count);
+        case C_DEFINE:
+            list_ptr = &(static_config.defines);
+            list_count = &(static_config.define_count);
         extend_list:
             const char **tmp_list = realloc(*list_ptr, ++(*list_count) * sizeof(*tmp_list));
             if(!tmp_list) goto error;
@@ -131,46 +173,48 @@ Config parseSettings(int argc, const char* const argv[])
             *list_ptr = tmp_list;
             break;
 
-        case STATUS:
+        case C_STATUS:
             size_t statlen = 0;
-            if(retConf.statuses != NULL) statlen = strlen(retConf.statuses); // count null char
-            char *tmp_char = realloc(retConf.statuses, statlen+2); // add a charachter + null char
+            if(static_config.statuses != NULL) statlen = strlen(static_config.statuses); // count null char
+            char *tmp_char = realloc(static_config.statuses, statlen+2); // add a charachter + null char
             if(!tmp_char) goto error;
             tmp_char[statlen+1] = '\0';
             tmp_char[statlen] = nextParam.argument[0];
-            retConf.statuses = tmp_char;
+            static_config.statuses = tmp_char;
             break;
 
-        case END:
+        case C_END:
             endReached = true;
             break;
 
-        // TODO:
         error:
-        case ERROR: // same as default
+        case C_ERROR: // same as default
         default:
-            printf("ERROR!!\n");
+            log_fatal("Could not allocate required space to parse CLI options.", CLI);
             break;
         }
     }
 
-    return retConf;
+    return &static_config;
 }
 
 
 /*
  * Free space that was allocated on the heap to store config.
 */
-void clearConfig(Config config)
+void clear_config()
 {
-    if(config.errors != NULL) 0;
+    if(static_config.flows != NULL)
+        free(static_config.flows);
+    if(static_config.statuses != NULL)
+        free(static_config.statuses);
+    if(static_config.defines != NULL)
+        free(static_config.defines);
 
-    if(config.flows != NULL)
-        free(config.flows);
-    if(config.statuses != NULL)
-        free(config.statuses);
-    if(config.defines != NULL)
-        free(config.defines);
+    // safe double clear
+    static_config.flows = NULL;
+    static_config.statuses = NULL;
+    static_config.defines = NULL;
 }
 
 
@@ -178,7 +222,7 @@ void clearConfig(Config config)
 /*
  * Print help text
 */
-void printHelp()
+void print_help()
 {
     
     printf("Usage: pipe [<flow>] [<options>] [-f <pipe_file>]\n\n");
