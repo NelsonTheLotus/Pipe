@@ -3,7 +3,9 @@
 #include "../global.h"
 
 
-// ==== External Structures ====
+// ==== External Structures and types ====
+
+typedef void (*callback_ptr)(void);
 
 typedef enum LogLevel
 {
@@ -56,10 +58,10 @@ void log_disable_file(void);
 //* Weather to enable prints to stdout and stderr
 void std_set_enabled(bool enabled);
 
-//* Register a job for the cleanup process -> job ID
-unsigned int register_cleanup(void (*cleanup_cb)(void));
-//* Remove job ID from cleanup list -> success
-bool remove_cleanup(unsigned int jobID);
+//* Register a job for the cleanup process -> job ID (1 indexed)
+size_t register_cleanup(callback_ptr newCallback);
+//* Remove job ID from cleanup list (1-indexed) -> success
+bool remove_cleanup(size_t jobID);
 
 
 /* Note:

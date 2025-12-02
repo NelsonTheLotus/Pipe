@@ -8,7 +8,7 @@
 
 
 
-// ==== Internal structures ====
+// ==== Internal structures and types ====
 
 typedef struct LogEntry
 {
@@ -32,8 +32,10 @@ typedef struct
     LogEntry* stackTail;    // the tail of the log stack
     LogEntry* stackHead;    // The start of the log stack
     LogEntry* stackFile;    // Where the file logging begins
-    
-    bool fatal;             // weather a fatal error has occured
+
+    callback_ptr* callbackList; // list of callback cleanup functions
+    size_t callbackSize;
+    size_t nextCallbackIndex;
     // TODO: cleanup callback
 
 } LogStack;
@@ -62,12 +64,16 @@ static LogStack mainStack = (LogStack){
     .stackTail = NULL,
     .stackHead = NULL,
     .stackFile = NULL,
-    .fatal = false,
+    .callbackList = NULL,
+    .callbackSize = 0,
+    .nextCallbackIndex = 0,
 };
 
 // static fallback logs for guaranteed logs in case of logging failure
 static LogEntry fatal_malloc_log =
     {"Could not allocate required space while processing log.", FATAL, STATIC_FALLBACK, 0, NULL};
+static LogEntry fatal_job_alloc = 
+    {"Could not reserve required space for cleanup job.", FATAL, STATIC_FALLBACK, 0, NULL};
 
 
 
@@ -116,6 +122,22 @@ void print_log(const LogEntry* log)
     return;
 }
 
+//* Log a static error
+void log_static(LogEntry* staticLog)
+{
+    // set time of logging
+    staticLog->timestamp = clock();
+
+    // append new log
+    if(mainStack.stackTail != NULL)
+        mainStack.stackTail->nextEntry = staticLog;
+    mainStack.stackTail = staticLog;
+
+    // display log
+    print_log((const LogEntry*) staticLog);
+    return;
+}
+
 //* Clear the log stack
 void free_log_stack()
 {
@@ -131,15 +153,32 @@ void free_log_stack()
     return;
 }
 
-//* Run all cleanup callback functions
+//* Clear the job list
+void free_callback_list()
+{
+    if(mainStack.callbackList != NULL)
+        free(mainStack.callbackList);
+    return;
+}
+
+//* Run all cleanup callback functions upon fatal
 void cleanup(int EXITCODE)
 {
     
-    // TODO: run all cleanup routines
+    for(size_t jobID = 0; jobID < mainStack.callbackSize; jobID++)
+    {
+        callback_ptr cleanupFn = mainStack.callbackList[jobID];
+        printf("RUNNING CLEANUP: %p\n", cleanupFn);
+        if(cleanupFn == NULL)
+            continue;
+        cleanupFn();  // call cleanup fn
+    }
     
     log_disable_file();
     free_log_stack();
-    if(EXITCODE) exit(EXITCODE);
+    free_callback_list();
+
+    if(EXITCODE) exit(EXITCODE);    // only abort if error
     return;
 }
 
@@ -154,13 +193,15 @@ void log_msg(const char* msg, LogLevel lvl, LogType type)
     // if new log could not be allocated: 
     //   - log a fatal malloc instead
     if(newEntry == NULL)
-        newEntry = &fatal_malloc_log;
-    else{
-        newEntry->msg = msg;
-        newEntry->level = lvl;
-        newEntry->type = type;
-        newEntry->nextEntry = NULL;
+    {
+        log_static(&fatal_malloc_log);
+        return;
     }
+
+    newEntry->msg = msg;
+    newEntry->level = lvl;
+    newEntry->type = type;
+    newEntry->nextEntry = NULL;
     
     // set time of logging
     newEntry->timestamp = clock();
@@ -172,15 +213,20 @@ void log_msg(const char* msg, LogLevel lvl, LogType type)
 
     // display log
     print_log(newEntry);
+    if(newEntry->level == FATAL)
+        cleanup(-1);
+
     return;
 }
 //TODO: Add more logging functions?
 
 void close_logging()
 {
-    //TODO: Add non-fatal cleanup routines
-    // => doCleanup()??
-    cleanup(0);
+    log_disable_file();
+    free_log_stack();
+    free_callback_list();
+
+    return;
 }
 
 
@@ -227,22 +273,54 @@ void std_set_enabled(bool enabled)
     mainStack.stdSupress = enabled;
 }
 
-unsigned int register_cleanup(void (*cleanup_cb)(void))
+size_t register_cleanup(callback_ptr newCallback)
 {
-    //TODO: implement
-    return 0;
+    if(mainStack.callbackList == NULL)
+    {
+        mainStack.callbackList = (callback_ptr*)malloc(sizeof(callback_ptr));
+        mainStack.callbackSize = 1;
+    }
+    if(mainStack.nextCallbackIndex >= mainStack.callbackSize)
+    {
+        mainStack.callbackSize++;
+        callback_ptr* newCallbackList =     // don't assign to avoid segfaults when doing fatal cleanup
+            (callback_ptr*)realloc(mainStack.callbackList, mainStack.callbackSize*sizeof(callback_ptr));
+
+        if(newCallbackList == NULL)
+        {
+            newCallback();  // do the cleanup fn that was not allocated and will hence not be run
+            log_static(&fatal_job_alloc);
+            return 0;       // 0 is error
+        }
+    }
+
+    mainStack.callbackList[mainStack.nextCallbackIndex] = newCallback;
+    size_t jobID = mainStack.nextCallbackIndex+1; // transform to 1-indexed
+    while(++(mainStack.nextCallbackIndex) < mainStack.callbackSize)  // search for next spot as of the index
+    {
+        if(mainStack.callbackList[mainStack.nextCallbackIndex] == NULL)    // spot found
+            break;
+    }
+
+    return jobID;
 }
 
-bool remove_cleanup(unsigned int jobID)
+bool remove_cleanup(size_t jobID)
 {
-    //TODO: implement
-    return false;
+    if(jobID > mainStack.callbackSize)
+        return false;   // no job has this ID
+    
+    mainStack.callbackList[--jobID] = NULL; // jobID is 1-indexed
+    if(mainStack.nextCallbackIndex > jobID)
+        mainStack.nextCallbackIndex = jobID;    // backup the search for available spots
+
+    return true;
 }
 
 
-// TODO: Log printing formating
-// TODO: Cleanup callbacks stack manipulation
-// TODO: Non-fatal cleanup + fatal cleanup
-// TODO: Add file+stream logging
-// TODO: Add more logging interface functions
+// TODO: Log printing formating --------------- 
+// TODO: Cleanup callbacks stack manipulation - (DONE)
+// TODO: Non-fatal cleanup + fatal cleanup ---- (DONE)
+// TODO: Add file+stream logging --------------
+// TODO: Add more logging interface functions -
 

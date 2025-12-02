@@ -160,7 +160,6 @@ Config parseSettings(int argc, const char* const argv[])
 
 /*
  * Free space that was allocated on the heap to store config.
- *
 */
 void clearConfig(Config config)
 {

@@ -55,6 +55,13 @@ int main(int argc, char* argv[])
         log_msg("CONFIGURING...", INFO, NONE);
     if(doRun)
         log_msg("RUNNING...", WARNING, SYSTEM);
+
+    //register_cleanup(&clearCache);
+    size_t clearCacheID =  register_cleanup(&clearCache);
+    register_cleanup(&clearCache);
+    remove_cleanup(clearCacheID);
+
+    log_msg("GENERATED ERROR", FATAL, NONE);
     
 
     clearConfig(settings);
