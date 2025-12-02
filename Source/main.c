@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
 
     log_fatal("GENERATED ERROR", NONE);
     
-
+    printf("This happened\n");
     clear_config(settings);
     close_logging();
     return 0;

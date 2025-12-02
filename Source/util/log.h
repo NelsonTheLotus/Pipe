@@ -43,7 +43,7 @@ void log_t(const char* msg, LogSource source);
 //* Log a fatal error
 void log_fatal(const char* msg, LogSource source);
 
-//* Finnish logging gracefully
+//* Finnish non-fatal logging gracefully
 void close_logging();
 
 

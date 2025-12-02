@@ -135,7 +135,7 @@ void free_callback_list()
 }
 
 //* Run all cleanup callback functions upon fatal
-void cleanup(int EXITCODE)
+void cleanup()
 {
     
     for(size_t jobID = 0; jobID < mainStack.callbackSize; jobID++)
@@ -146,12 +146,8 @@ void cleanup(int EXITCODE)
         cleanupFn();  // call cleanup fn
     }
     
-    log_disable_file();
-    free_log_stack();
-    free_callback_list();
-
-    if(EXITCODE) exit(EXITCODE);    // only abort if error
-    return;
+    close_logging();
+    exit(-1);
 }
 
 //* Prints formatted output to desired outputs
@@ -180,7 +176,7 @@ void log_entry(LogEntry* logEntry)
     // display log
     print_log((const LogEntry*)logEntry);
     if(logEntry->level == FATAL)
-        cleanup(-1);
+        cleanup();
 
     return;
 }
@@ -239,7 +235,6 @@ void close_logging()
     log_disable_file();
     free_log_stack();
     free_callback_list();
-
     return;
 }
 
