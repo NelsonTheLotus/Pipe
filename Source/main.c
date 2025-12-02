@@ -25,8 +25,9 @@ void loadCache()
 
 int main(int argc, char* argv[])
 {
+    // register before parsing; no need to clear this job
+    register_cleanup(&clear_config);
     Config* settings = parse_settings(argc, (const char* const*)argv);
-    register_cleanup(&clear_config); // don't need to clear the job
 
     bool doSyntax = false;  // Weather to check the file syntax.
     bool doParse = false;   // weather the file must be parsed. Automatic if file is newer than cache.
@@ -56,15 +57,7 @@ int main(int argc, char* argv[])
         log_msg("CONFIGURING...");
     if(doRun)
         log_full("RUNNING...", WARNING, SYSTEM);
-
-    //register_cleanup(&clearCache);
-    size_t clearCacheID =  register_cleanup(&clearCache);
-    register_cleanup(&clearCache);
-    remove_cleanup(clearCacheID);
-
-    log_fatal("GENERATED ERROR", NONE);
     
-    printf("This happened\n");
     clear_config(settings);
     close_logging();
     return 0;

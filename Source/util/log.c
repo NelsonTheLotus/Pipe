@@ -10,6 +10,20 @@
 
 // ==== Internal structures and types ====
 
+typedef enum ColorType
+{
+    CLR_VERBOSE = 0,    // = VERBOSE
+    CLR_INFO = 1,       // = INFO
+    CLR_WARNING = 2,    // = WARNING
+    CLR_CRITICAL = 3,   // = CRITICAL
+    CLR_FATAL = 4,      // = FATAL
+    CLR_CLEAR = 5,
+    CLR_TIME = 6,
+    CLR_SOURCE = 7,
+    CLR_MSG = 8,
+
+} ColorType;
+
 typedef struct LogEntry
 {
     const char* msg;
@@ -42,17 +56,32 @@ typedef struct
 
 // ==== Static variables ====
 
+// Static colors array
+static const char* colors[] = 
+{
+    "\x1b[1;34m",   // CLR_VERBOSE  = Bold blue
+    "\x1b[1;32m",   // CLR_INFO     = Bold green
+    "\x1b[1;33m",   // CLR_WARNING  = Bold yellow
+    "\x1b[1;35m",   // CLR_CRITICAL = Bold purple
+    "\x1b[1;31m",   // CLR_FATAL    = Bold red
+    "\x1b[0m",      // CLR_CLEAR    = clear
+    "\x1b[0;36m",   // CLR_TIME     = cyan
+    "\x1b[0;97m",   // CLR_SOURCE   = normal white (high-intensity)
+    "\x1b[0;90m",   // CLR_MSG      = light black (high-intensity)
+};
+
 // Static string mappings
-static const char* const LS_verbose = "verbose";
-static const char* const LS_info = "info";
-static const char* const LS_warning = "warning";
-static const char* const LS_critical = "critical";
-static const char* const LS_fatal = "fatal";
+static const char* const LS_verbose = "VERBOSE";
+static const char* const LS_info = "INFO";
+static const char* const LS_warning = "WARNING";
+static const char* const LS_critical = "CRITICAL";
+static const char* const LS_fatal = "FATAL";
 
 static const char* const TS_none = "";
 static const char* const TS_system = "system";
 static const char* const TS_static_fallback = "static fallback";
 static const char* const TS_cli = "cli";
+static const char* const TS_logger = "logger";
 
 // log stack
 static LogStack mainStack = (LogStack){
@@ -69,7 +98,7 @@ static LogStack mainStack = (LogStack){
     .nextCallbackIndex = 0,
 };
 
-// static fallback logs for guaranteed logs in case of logging failure
+// static fallback logs for guaranteed logs in case of logging failure (MUST BE FATAL OR SEGFAULT)
 static LogEntry fatal_malloc_log =
     {"Could not allocate required space while processing log.", FATAL, STATIC_FALLBACK, 0, NULL};
 static LogEntry fatal_job_alloc = 
@@ -103,6 +132,7 @@ const char* src_to_str(LogSource src)
         case NONE: return TS_none;
         case SYSTEM: return TS_system;
         case CLI: return TS_cli;
+        case LOGGER: return TS_logger;
         default:
             return "unknown";
     }
@@ -111,18 +141,30 @@ const char* src_to_str(LogSource src)
 }
 
 
-//* Clear the log stack
-void free_log_stack()
+//* Reduce log_stack up to boundary
+void clean_log_stack(LogEntry* boundary)
 {
-    LogEntry *currentEntry = mainStack.stackTail;
+    LogEntry *currentEntry = mainStack.stackHead;
     LogEntry *previousEntry = NULL;
-    while(currentEntry != NULL)
+    while(currentEntry != boundary)
     {
+        if(currentEntry == NULL) break; // end reached
+
         previousEntry = currentEntry;
         currentEntry = currentEntry->nextEntry;
         if(previousEntry->source = STATIC_FALLBACK) continue; // don't free static logs
+
         free(previousEntry);
     }
+
+    mainStack.stackHead = boundary;
+    return;
+}
+
+//* Clear the log stack
+void clear_log_stack()
+{
+    clean_log_stack(NULL);
     return;
 }
 
@@ -154,11 +196,14 @@ void cleanup()
 void print_log(const LogEntry* log)
 {
     if(log == NULL) return;
+    if(mainStack.stdSupress) return;    // don't print if supressing std
+    if(log->level < mainStack.stdLevel) return; // don't print if not important
 
-    // TODO: check if supress logging, log to file, log to std
-    // TODO: Add colors to STD
+    printf("%s%ju%s - [%s%s%s] %s%s%s: %s%s%s\n", colors[CLR_TIME], log->timestamp, colors[CLR_CLEAR],
+                                              colors[log->level], lvl_to_str(log->level), colors[CLR_CLEAR],
+                                              colors[CLR_SOURCE], src_to_str(log->source), colors[CLR_CLEAR],
+                                              colors[CLR_MSG], log->msg, colors[CLR_CLEAR]);
     // TODO: improve timestamp printing
-    printf("%ju - [%s] %s: %s\n", log->timestamp, lvl_to_str(log->level), src_to_str(log->source), log->msg);
     return;
 }
 
@@ -230,15 +275,29 @@ void log_fatal(const char* msg, LogSource src)
     return;
 }
 
-void close_logging()
+void close_logging(void)
 {
-    log_disable_file();
-    free_log_stack();
+    // don't run cleanup functions
+    close_log_file();
+    clear_log_stack();
     free_callback_list();
     return;
 }
 
+void write_file_logs(void)
+{
+    if(mainStack.logfile == NULL) return;   // don't write if no file
+    if(mainStack.logSupress) return;        // don't write if supressing logs
 
+    while(mainStack.stackFile != NULL)
+    {
+        if(mainStack.stackFile->level < mainStack.logLevel) continue;
+        fprintf(mainStack.logfile, "%s\n", mainStack.stackFile->msg);
+        mainStack.stackFile = mainStack.stackFile->nextEntry;
+    }
+
+    return;
+}
 
 // ==== Parametering Functions ====
 
@@ -249,7 +308,9 @@ void set_verbosity(LogLevel lvl)
 }
 void set_log_verbosity(LogLevel lvl)
 {
+    write_file_logs();  // Write all logs up to now
     mainStack.logLevel = lvl;
+    mainStack.stackFile = mainStack.stackTail;
     return;
 }
 LogLevel get_log_verbosity(void)
@@ -266,20 +327,49 @@ LogLevel get_std_verbosity(void)
     return mainStack.stdLevel;
 }
 
-bool log_enable_file(const char* path)
+bool set_log_file(const char* path, bool clearFile)
 {
-    mainStack.logSupress = false;
-    return false; // TODO: implement
+    if(clearFile)
+        mainStack.logfile = fopen(path, "w");
+    else mainStack.logfile = fopen(path, "a");
+    if(mainStack.logfile == NULL)
+    {
+        log_full("Could not open log file: \"\"", CRITICAL, LOGGER); // TODO: Add attempted file path
+        log_set_enabled(false);
+        return false;
+    }
+
+    log_set_enabled(true);
+    return true;
+}
+void close_log_file(void)
+{
+    log_set_enabled(false);     // writes all logs to file
+    if(mainStack.logfile == NULL) return; // job is already done
+
+    fclose(mainStack.logfile);
+    mainStack.logfile = NULL;
+    return;
 }
 
-void log_disable_file(void)
+void log_set_enabled(bool enabled)
 {
-    return; //TODO: implement
-}
+    mainStack.logSupress = !enabled;
+    if(enabled)
+        mainStack.stackFile = mainStack.stackTail;
+    else    // supress = true
+    {
+        if(mainStack.logfile == NULL)
+            log_full("No log file to write to.", WARNING, LOGGER);
+        write_file_logs();
+        mainStack.stackFile = NULL;
+    }
 
+    return;
+}
 void std_set_enabled(bool enabled)
 {
-    mainStack.stdSupress = enabled;
+    mainStack.stdSupress = !enabled;
 }
 
 size_t register_cleanup(callback_ptr newCallback)
@@ -313,7 +403,6 @@ size_t register_cleanup(callback_ptr newCallback)
 
     return jobID;
 }
-
 bool remove_cleanup(size_t jobID)
 {
     if(jobID > mainStack.callbackSize)
@@ -327,9 +416,9 @@ bool remove_cleanup(size_t jobID)
 }
 
 
-// TODO: Log printing formating --------------- 
+// TODO: Log printing formating --------------- (TIME)
 // TODO: Cleanup callbacks stack manipulation - (DONE)
 // TODO: Non-fatal cleanup + fatal cleanup ---- (DONE)
-// TODO: Add file+stream logging --------------
+// TODO: Add file+stream logging -------------- (DONE)
 // TODO: Add more logging interface functions - (DONE)
 

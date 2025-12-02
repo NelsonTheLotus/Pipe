@@ -25,6 +25,7 @@ typedef enum LogSource
     NONE = 0,
     SYSTEM = 1,
     CLI = 2,
+    LOGGER = 3,
 
 } LogSource;
 
@@ -44,7 +45,7 @@ void log_t(const char* msg, LogSource source);
 void log_fatal(const char* msg, LogSource source);
 
 //* Finnish non-fatal logging gracefully
-void close_logging();
+void close_logging(void);
 
 
 
@@ -59,11 +60,13 @@ LogLevel get_log_verbosity(void);
 void set_std_verbosity(LogLevel lvl);
 LogLevel get_std_verbosity(void);
 
-//* Enable logging to specified file -> success
-bool log_enable_file(const char* path);
-//* Write current log stack to file and close (if open) 
-void log_disable_file(void);
+//* Open a file for logging
+bool set_log_file(const char* path, bool clearFile);
+//* Write current log stack to file and close
+void close_log_file(void);
 
+//* Enable logging
+void log_set_enabled(bool enabled);
 //* Weather to enable prints to stdout and stderr
 void std_set_enabled(bool enabled);
 
