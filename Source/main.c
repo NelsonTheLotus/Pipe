@@ -29,34 +29,22 @@ int main(int argc, char* argv[])
     register_cleanup(&clear_config);
     Config* settings = parse_settings(argc, (const char* const*)argv);
 
-    bool doSyntax = false;  // Weather to check the file syntax.
-    bool doParse = false;   // weather the file must be parsed. Automatic if file is newer than cache.
-    bool doConfig = false;  // weather config should be reparsed. auto-set if doParse.
-    bool doRun = false;     // weather to actually run the file
-
+    // Actionnable settings
+    if(settings->verbose) set_verbosity(VERBOSE);
     if(settings->help) print_help();
 
-    loadCache(); // framework functions
+    // Step 1: Load
+    loadCache();
     if(settings->statuses != NULL)
         printStatuses(settings->statuses);
     else if(settings->clear)
         clearCache();
-    else
-    {
-        //TODO: add logic
-        doParse = true; 
-        doConfig = true;
-        doRun = true;
-    }
 
-    // if parseSpec: parse, NOConf
+    // Step 2: Read
 
-    if(doParse)
-        log_t("PARSING...", SYSTEM);
-    if(doConfig)
-        log_msg("CONFIGURING...");
-    if(doRun)
-        log_full("RUNNING...", WARNING, SYSTEM);
+    // Step 3: Process
+
+    // Step 4: Execute
     
     clear_config(settings);
     close_logging();
