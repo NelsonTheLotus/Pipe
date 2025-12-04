@@ -5,6 +5,7 @@
 #include "execute/execute.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 void printStatuses(const char* statusString)
 {
@@ -45,7 +46,13 @@ int main(int argc, char* argv[])
     // Step 3: Process
 
     // Step 4: Execute
-    
+    char* groupString = get_target_group_name();
+    if(groupString != NULL)
+    {
+        printf("Target group is: %s\n", groupString);
+        free(groupString);
+    }
+
     clear_config(settings);
     close_logging();
     return 0;
