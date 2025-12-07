@@ -102,6 +102,9 @@ int platform_file_delete(const char* path);
 int platform_mkdir(const char* path);
 int platform_dir_exists(const char* path);
 
+bool paltform_get_cwd(void);
+bool platform_set_cwd(const char* path);
+
 int platform_cache_init(const char* cache_dir);
 int platform_cache_write(const char* key, const char* value);
 char* platform_cache_read(const char* key);

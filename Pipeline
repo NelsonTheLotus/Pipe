@@ -1,8 +1,8 @@
-default flow: debug
 
 config {
-    implicit_dir_creation: true
-    platform: windows
+    !default_flow: debug
+    !implicit_dir_creation: true
+    !platform: windows
 }
 
 action debug_compile: dynamic(time)
