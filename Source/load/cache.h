@@ -1,18 +1,20 @@
 #pragma once
 
+#include "../global.h"
 
-// Public structures
+
+// ==== Public structures ====
 
 typedef struct Cache
 {
-    int ignore;
+    bool opened;    // weather the cache was opened for reading
 } Cache;
 
-// Interface
+// ==== Interface ====
 
 //* Load the cache
-Cache* load_cache();
+const Cache *load_cache();
 //* When finnished, close
-void close_cache();
+void close_cache(void);
 //* Deletes curent cache; This is non-reversible
 void clear_cache();

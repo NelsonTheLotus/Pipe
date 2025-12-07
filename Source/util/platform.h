@@ -129,5 +129,12 @@ bool create_dir(const char* path);
  */
 bool join_path(char* source, const char* target, const size_t max_source_size);
 
+/*
+ * out_entries: pointer to array of char* (allocated via malloc), must free by caller
+ * out_count: number of entries
+ * filter: FILE_TYPE_NONE = all, FILE_TYPE_FILE = files only, FILE_TYPE_DIR = dirs only
+ */
+bool list_path(const char* path, fileType filter, char*** out_entries, size_t* out_count);
+
+
 //* Get system time.
-//* list files and directories

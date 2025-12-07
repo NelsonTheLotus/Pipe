@@ -26,6 +26,7 @@ typedef enum LogSource
     SYSTEM = 1,
     CLI = 2,
     LOGGER = 3,
+    CACHE,
 
 } LogSource;
 

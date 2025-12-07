@@ -84,7 +84,8 @@ static const char* const TS_cli = "cli";
 static const char* const TS_logger = "logger";
 
 // log stack
-static LogStack mainStack = (LogStack){
+static LogStack mainStack = (LogStack)
+{
     .logfile = NULL, 
     .logSupress = true, 
     .logLevel = INFO,

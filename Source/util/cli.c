@@ -40,7 +40,7 @@ typedef struct Parameter
 
 // ==== Static configuration ====
 
-static Config static_config =
+static Config static_config = (Config)
 {
     .flows        = NULL,
     .flow_count   = 0,
@@ -232,7 +232,7 @@ void print_help()
 
     printf("If no <pipe_file> is specified, Pipe searches the cache for\n"); 
     printf("the previously used pipe file. If not found, it then searches\n");
-    printf("the CWD for a file named 'pipefile'. If not found found, it fails.\n\n");
+    printf("the CWD for a file named 'pipefile'. If not found, it fails.\n\n");
 
     printf("Options include:\n");
     printf("   -h, --help                      : Show this text.\n");
@@ -242,7 +242,7 @@ void print_help()
     printf("                                     State may be 'config', ....\n");
     printf("                                     If no state is specified, all states will be shown.\n");
     printf("   --clear                         : Clear all cache and data.\n");
-    printf("   -a, --atomic                    : Run pipe, ignoring all cache states.\n");
+    printf("   -a, --atomic                    : Run pipe atomically, ignoring all cache states.\n");
     printf("   -v, --verbose                   : Enable verbose logging.\n");
     printf("   -p, --parse [s|e]               : Parse and validate pipe file.\n");
     printf("                                     If run with 's', do static analysis only.\n");

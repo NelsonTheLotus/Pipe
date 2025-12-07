@@ -1,4 +1,5 @@
 #include "util/util.h"
+
 #include "load/load.h"
 #include "read/read.h"
 #include "process/process.h"
@@ -35,7 +36,11 @@ int main(int argc, char* argv[])
     if(settings->help) print_help();
 
     // Step 1: Load
-    loadCache();
+    const Cache *cache = NULL;
+    if(!settings->atomic)
+        cache = load_cache();
+    register_cleanup(&close_cache);
+
     if(settings->statuses != NULL)
         printStatuses(settings->statuses);
     else if(settings->clear)

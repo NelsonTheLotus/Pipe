@@ -386,6 +386,10 @@ bool set_cwd(const char *path)
     return chdir_res;
 }
 
+/*
+ * Modifications to be made: if the file or directory does not exist, stat returns false.
+ * This was not originally intended, but maybe it should be.
+ */
 bool stat_path(const char* path, fileStat* out)
 {
     if (!path || !out) return false;
@@ -461,7 +465,7 @@ bool create_dir(const char* path)
     }
 
     // Recursively create parent
-    char parent[4096];
+    char parent[MAX_PATH_SIZE];
     strncpy(parent, path, sizeof(parent));
     parent[sizeof(parent)-1] = '\0';
 
@@ -522,11 +526,6 @@ bool join_path(char* source, const char* target, const size_t max_source_size)
     return true;
 }
 
-/*
- * out_entries: pointer to array of char* (allocated via malloc), must free by caller
- * out_count: number of entries
- * filter: FILE_TYPE_NONE = all, FILE_TYPE_FILE = files only, FILE_TYPE_DIR = dirs only
- */
 bool list_path(const char* path, fileType filter, char*** out_entries, size_t* out_count)
 {
     if (!path || !out_entries || !out_count) return false;
