@@ -2,18 +2,7 @@
 
 #include "../global.h"
 
-#include <stddef.h>
 #include <stdint.h>
-
-// Platform independent inclusions
-#if defined(_WIN32)
-    #include <windows.h>
-    #include <direct.h>
-    #define PATH_MAX 260
-#else
-    #include <unistd.h>
-    #include <limits.h>
-#endif
 
 
 // ==== PLATFORM ENUMS ====
@@ -81,6 +70,23 @@ typedef enum {
 
 
 
+// ==== Interface Structures ====
+
+typedef enum {
+    FILE_TYPE_NONE = 0,
+    FILE_TYPE_FILE,
+    FILE_TYPE_DIR,
+    FILE_TYPE_ANY
+} fileType;
+
+typedef struct {
+    bool exists;
+    fileType type;
+    uint64_t mtime; // modification time, standardized to unix-time
+} fileStat;
+
+
+
 // ==== Host System Reflection Functions ====
 hostArch get_host_arch(void);
 hostVendor get_host_vendor(void);
@@ -99,36 +105,29 @@ bool host_is_bsd(void);
 
 
 
-// ==== System control ====
-
-/*const char* platform_env_get(const char* var);
-int platform_env_set(const char* var, const char* value);
-int platform_env_exists(const char* var);
-
-char* platform_file_read(const char* path, size_t* out_size);
-int platform_file_write(const char* path, const char* data, size_t size);
-int platform_file_exists(const char* path);
-int platform_file_delete(const char* path);
-
-int platform_mkdir(const char* path);
-int platform_dir_exists(const char* path);
-
-bool paltform_get_cwd(void);
-bool platform_set_cwd(const char* path);
-
-int platform_cache_init(const char* cache_dir);
-int platform_cache_write(const char* key, const char* value);
-char* platform_cache_read(const char* key);
-
-uint64_t platform_timestamp_ms(void);
-char* platform_join_path(const char* a, const char* b);
-void platform_free(void* p);
-*/
-
 // ==== Interface ====
 
-bool create_dir(const char* path);
-// stat()
-
+//* Get the current working directory in standard form.
 const char* get_cwd(void);
+//* Set the current working directory in standard form.
 bool set_cwd(const char* path);
+
+//* Get path information. File can be file or directory. Returns 0 on success.
+bool stat_path(const char* path, fileStat* out);
+
+//* Create desired path. Returns 0 on success.
+bool create_dir(const char* path);
+//* file creation is already handeled by the C fopen
+
+/*
+ * Concatenates `target` to `source`, adding a separator if necessary.
+ * 
+ * @param source The original path, will be modified in-place.
+ * @param target The path to append.
+ * @param max_source_size The total size of the `source` buffer.
+ * @return true if concatenation succeeded, false if buffer would overflow.
+ */
+bool join_path(char* source, const char* target, const size_t max_source_size);
+
+//* Get system time.
+//* list files and directories

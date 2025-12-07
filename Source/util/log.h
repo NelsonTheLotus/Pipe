@@ -39,7 +39,7 @@ void log_full(const char* msg, LogLevel lvl, LogSource source);
 void log_msg(const char* msg);
 //* log a messgae with <lvl>
 void log_l(const char* msg, LogLevel lvl);
-//* log a message with type <source
+//* log a message with type <source>
 void log_t(const char* msg, LogSource source);
 //* Log a fatal error
 void log_fatal(const char* msg, LogSource source);

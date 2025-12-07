@@ -199,10 +199,15 @@ void print_log(const LogEntry* log)
     if(mainStack.stdSupress) return;    // don't print if supressing std
     if(log->level < mainStack.stdLevel) return; // don't print if not important
 
-    printf("%s%ju%s - [%s%s%s] %s%s%s: %s%s%s\n", colors[CLR_TIME], log->timestamp, colors[CLR_CLEAR],
-                                              colors[log->level], lvl_to_str(log->level), colors[CLR_CLEAR],
-                                              colors[CLR_SOURCE], src_to_str(log->source), colors[CLR_CLEAR],
-                                              colors[CLR_MSG], log->msg, colors[CLR_CLEAR]);
+    FILE *outStream = stdout;
+    if(log->level >= CRITICAL)  // log to stderr if critical or fatal
+        outStream = stderr;
+
+    fprintf(outStream, "%s%ju%s - [%s%s%s] %s%s%s: %s%s%s\n", colors[CLR_TIME], log->timestamp, colors[CLR_CLEAR],
+                                                              colors[log->level], lvl_to_str(log->level), colors[CLR_CLEAR],
+                                                              colors[CLR_SOURCE], src_to_str(log->source), colors[CLR_CLEAR],
+                                                              colors[CLR_MSG], log->msg, colors[CLR_CLEAR]);
+                                                              
     // TODO: improve timestamp printing
     return;
 }
