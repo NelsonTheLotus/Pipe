@@ -1,257 +1,265 @@
 #include "platform.h"
 
-#include "log.h"
 
 
-#include <string.h>
-#include <stdlib.h>
-
-
-
-// ==== Detection functions ====
-
-targetArch get_target_arch(void) 
-{
+// ==== Compile-time evaluation ====
+// --- Arch ---
 #if defined(__x86_64__) || defined(_M_X64)
-    return PLATFORM_ARCH_X64;
-
+    #define HOST_ARCH_NAME "x86_64"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_X64
 #elif defined(__i386__) || defined(_M_IX86)
-    return PLATFORM_ARCH_X86;
-
+    #define HOST_ARCH_NAME "x86"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_X86
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    return PLATFORM_ARCH_ARM64;
-
+    #define HOST_ARCH_NAME "aarch64"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_ARM64
 #elif defined(__arm__) || defined(_M_ARM)
-    return PLATFORM_ARCH_ARM;
-
+    #define HOST_ARCH_NAME "arm"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_ARM
 #elif defined(__riscv) && __riscv_xlen == 64
-    return PLATFORM_ARCH_RISCV64;
-
+    #define HOST_ARCH_NAME "riscv64"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_RISCV64
 #elif defined(__powerpc64__) || defined(__ppc64__)
-    return PLATFORM_ARCH_PPC64;
-
+    #define HOST_ARCH_NAME "ppc64"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_PPC64
 #elif defined(__powerpc__) || defined(__ppc__)
-    return PLATFORM_ARCH_PPC;
-
+    #define HOST_ARCH_NAME "ppc"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_PPC
 #elif defined(__mips64)
-    return PLATFORM_ARCH_MIPS64;
-
+    #define HOST_ARCH_NAME "mips64"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_MIPS64
 #elif defined(__mips__)
-    return PLATFORM_ARCH_MIPS;
-
+    #define HOST_ARCH_NAME "mips"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_MIPS
 #else
-    return PLATFORM_ARCH_UNKNOWN;
+    #define HOST_ARCH_NAME "unknown"
+    #define HOST_ARCH_ID   PLATFORM_ARCH_UNKNOWN
 #endif
-}
-
-const char* get_target_arch_name(void) 
-{
-    switch (get_target_arch()) {
-        case PLATFORM_ARCH_X86:     return "x86";
-        case PLATFORM_ARCH_X64:     return "x86_64";
-        case PLATFORM_ARCH_ARM:     return "arm";
-        case PLATFORM_ARCH_ARM64:   return "aarch64";
-        case PLATFORM_ARCH_RISCV64: return "riscv64";
-        case PLATFORM_ARCH_PPC:     return "ppc";
-        case PLATFORM_ARCH_PPC64:   return "ppc64";
-        case PLATFORM_ARCH_MIPS:    return "mips";
-        case PLATFORM_ARCH_MIPS64:  return "mips64";
-        default:                    return "unknown";
-    }
-}
 
 
-targetVendor get_target_vendor(void) 
-{
+// --- Vendor ---
 #if defined(__APPLE__)
-    return PLATFORM_VENDOR_APPLE;
-
+    #define HOST_VENDOR_NAME "apple"
+    #define HOST_VENDOR_ID   PLATFORM_VENDOR_APPLE
 #elif defined(_WIN32)
-    return PLATFORM_VENDOR_W64; /* MinGW/MSVC target uses w64 */
-
-#elif defined(__linux__)
-    return PLATFORM_VENDOR_PC;
-
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
-    return PLATFORM_VENDOR_PC;
-
+    #define HOST_VENDOR_NAME "w64"
+    #define HOST_VENDOR_ID   PLATFORM_VENDOR_W64
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    #define HOST_VENDOR_NAME "pc"
+    #define HOST_VENDOR_ID   PLATFORM_VENDOR_PC
 #elif defined(__sun)
-    return PLATFORM_VENDOR_ORACLE;
-
+    #define HOST_VENDOR_NAME "oracle"
+    #define HOST_VENDOR_ID   PLATFORM_VENDOR_ORACLE
 #elif defined(_AIX)
-    return PLATFORM_VENDOR_IBM;
-
+    #define HOST_VENDOR_NAME "ibm"
+    #define HOST_VENDOR_ID   PLATFORM_VENDOR_IBM
 #elif defined(__hpux)
-    return PLATFORM_VENDOR_HP;
-
+    #define HOST_VENDOR_NAME "hp"
+    #define HOST_VENDOR_ID   PLATFORM_VENDOR_HP
 #else
-    return PLATFORM_VENDOR_UNKNOWN;
+    #define HOST_VENDOR_NAME "unknown"
+    #define HOST_VENDOR_ID   PLATFORM_VENDOR_UNKNOWN
 #endif
-}
-
-const char* get_target_vendor_name(void) 
-{
-    switch (get_target_vendor()) {
-        case PLATFORM_VENDOR_NONE:   return "none";
-        case PLATFORM_VENDOR_PC:     return "pc";
-        case PLATFORM_VENDOR_APPLE:  return "apple";
-        case PLATFORM_VENDOR_W64:    return "w64";
-        case PLATFORM_VENDOR_IBM:    return "ibm";
-        case PLATFORM_VENDOR_ORACLE: return "oracle";
-        case PLATFORM_VENDOR_HP:     return "hp";
-        default:                     return "unknown";
-    }
-}
 
 
-targetAbi get_target_abi(void) 
-{
-#if defined(_WIN32)
-    return PLATFORM_ABI_MSVC;
-
-#elif defined(__GLIBC__)
-    return PLATFORM_ABI_GLIBC;
-
-#elif defined(__MUSL__)
-    return PLATFORM_ABI_MUSL;
-
-/* BSD libcs */
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
-    return PLATFORM_ABI_BSD;
-
-#elif defined(__sun)
-    return PLATFORM_ABI_SOLARIS;
-
-#elif defined(_AIX)
-    return PLATFORM_ABI_AIX;
-
-#elif defined(__hpux)
-    return PLATFORM_ABI_HPUX;
-
-#else
-    return PLATFORM_ABI_UNKNOWN;
-#endif
-}
-
-const char* get_target_abi_name(void) 
-{
-    switch (get_target_abi()) {
-        case PLATFORM_ABI_GLIBC:   return "gnu";     /* convention in triplets */
-        case PLATFORM_ABI_MUSL:    return "musl";
-        case PLATFORM_ABI_MSVC:    return "msvc";
-        case PLATFORM_ABI_BSD:     return "bsd";
-        case PLATFORM_ABI_SOLARIS: return "solaris";
-        case PLATFORM_ABI_AIX:     return "aix";
-        case PLATFORM_ABI_HPUX:    return "hpux";
-        default:                   return "unknown";
-    }
-}
-
-
-targetOS get_target_os(void)
-{
+// --- OS ---
 #if defined(_WIN32) || defined(_WIN64)
-    return PLATFORM_OS_WINDOWS;
-
+    #define HOST_OS_NAME "windows"
+    #define HOST_OS_ID   PLATFORM_OS_WINDOWS
 #elif defined(__APPLE__) && defined(__MACH__)
-    return PLATFORM_OS_MACOS;
-
+    #define HOST_OS_NAME "darwin"
+    #define HOST_OS_ID   PLATFORM_OS_MACOS
 #elif defined(__linux__)
-    return PLATFORM_OS_LINUX;
-
+    #define HOST_OS_NAME "linux"
+    #define HOST_OS_ID   PLATFORM_OS_LINUX
 #elif defined(__FreeBSD__)
-    return PLATFORM_OS_FREEBSD;
-
+    #define HOST_OS_NAME "freebsd"
+    #define HOST_OS_ID   PLATFORM_OS_FREEBSD
 #elif defined(__NetBSD__)
-    return PLATFORM_OS_NETBSD;
-
+    #define HOST_OS_NAME "netbsd"
+    #define HOST_OS_ID   PLATFORM_OS_NETBSD
 #elif defined(__OpenBSD__)
-    return PLATFORM_OS_OPENBSD;
-
+    #define HOST_OS_NAME "openbsd"
+    #define HOST_OS_ID   PLATFORM_OS_OPENBSD
 #elif defined(__DragonFly__)
-    return PLATFORM_OS_DRAGONFLYBSD;
-
+    #define HOST_OS_NAME "dragonfly"
+    #define HOST_OS_ID   PLATFORM_OS_DRAGONFLYBSD
 #elif defined(__sun)
-    return PLATFORM_OS_SOLARIS;
-
+    #define HOST_OS_NAME "solaris"
+    #define HOST_OS_ID   PLATFORM_OS_SOLARIS
 #elif defined(_AIX)
-    return PLATFORM_OS_AIX;
-
+    #define HOST_OS_NAME "aix"
+    #define HOST_OS_ID   PLATFORM_OS_AIX
 #elif defined(__hpux)
-    return PLATFORM_OS_HPUX;
-
+    #define HOST_OS_NAME "hpux"
+    #define HOST_OS_ID   PLATFORM_OS_HPUX
 #elif defined(__unix__) || defined(__unix)
-    return PLATFORM_OS_UNIX_GENERIC;
-
+    #define HOST_OS_NAME "unix"
+    #define HOST_OS_ID   PLATFORM_OS_UNIX_GENERIC
 #else
-    return PLATFORM_OS_UNKNOWN;
+    #define HOST_OS_NAME "unknown"
+    #define HOST_OS_ID   PLATFORM_OS_UNKNOWN
 #endif
-}
 
-const char* get_target_os_name(void) 
+
+// --- ABI ---
+#if defined(_WIN32)
+    #define HOST_ABI_NAME "msvc"
+    #define HOST_ABI_ID   PLATFORM_ABI_MSVC
+#elif defined(__GLIBC__)
+    #define HOST_ABI_NAME "gnu"
+    #define HOST_ABI_ID   PLATFORM_ABI_GLIBC
+#elif defined(__MUSL__)
+    #define HOST_ABI_NAME "musl"
+    #define HOST_ABI_ID   PLATFORM_ABI_MUSL
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    #define HOST_ABI_NAME "bsd"
+    #define HOST_ABI_ID   PLATFORM_ABI_BSD
+#elif defined(__sun)
+    #define HOST_ABI_NAME "solaris"
+    #define HOST_ABI_ID   PLATFORM_ABI_SOLARIS
+#elif defined(_AIX)
+    #define HOST_ABI_NAME "aix"
+    #define HOST_ABI_ID   PLATFORM_ABI_AIX
+#elif defined(__hpux)
+    #define HOST_ABI_NAME "hpux"
+    #define HOST_ABI_ID   PLATFORM_ABI_HPUX
+#else
+    #define HOST_ABI_NAME "unknown"
+    #define HOST_ABI_ID   PLATFORM_ABI_UNKNOWN
+#endif
+
+
+#define HOST_GROUP_NAME \
+    HOST_ARCH_NAME "-" HOST_VENDOR_NAME "-" HOST_OS_NAME "-" HOST_ABI_NAME
+
+
+// ==== System reflection functions ====
+
+// --- Build System reflection
+
+hostArch get_host_arch(void) 
 {
-    switch (get_target_os()) {
-        case PLATFORM_OS_WINDOWS:      return "windows";
-        case PLATFORM_OS_LINUX:        return "linux";
-        case PLATFORM_OS_MACOS:        return "darwin";
-        case PLATFORM_OS_FREEBSD:      return "freebsd";
-        case PLATFORM_OS_NETBSD:       return "netbsd";
-        case PLATFORM_OS_OPENBSD:      return "openbsd";
-        case PLATFORM_OS_DRAGONFLYBSD: return "dragonfly";
-        case PLATFORM_OS_SOLARIS:      return "solaris";
-        case PLATFORM_OS_AIX:          return "aix";
-        case PLATFORM_OS_HPUX:         return "hpux";
-        case PLATFORM_OS_UNIX_GENERIC: return "unix";
-        default:                       return "unknown";
-    }
+    return HOST_ARCH_ID;
+}
+const char* get_host_arch_name(void) 
+{
+    return HOST_ARCH_NAME;
 }
 
+hostVendor get_host_vendor(void) 
+{
+    return HOST_VENDOR_ID;
+}
+const char* get_host_vendor_name(void) 
+{
+    return HOST_VENDOR_NAME;
+}
 
+hostAbi get_host_abi(void) 
+{
+    return HOST_ABI_ID;
+}
+const char* get_host_abi_name(void) 
+{
+    return HOST_ABI_NAME;
+}
 
-// ==== Target group generation: arch-vendor-os-abi ==== 
+hostOS get_host_os(void)
+{
+    return HOST_OS_ID;
+}
+const char* get_host_os_name(void) 
+{
+    return HOST_OS_NAME;
+}
 
 /*
  * Return a group string with format:
  *  <arch>-<vendor>-<os>-<abi>
- * 
- * **Returned string must be freed**
 */
-char* get_target_group_name(void) 
+const char* get_host_group_name(void) 
 {
-    const char* arch   = get_target_arch_name();
-    const char* vendor = get_target_vendor_name();
-    const char* os     = get_target_os_name();
-    const char* abi    = get_target_abi_name();
+    return HOST_GROUP_NAME;
+}
 
-    /* triplet string length */
-    size_t len = strlen(arch) + strlen(vendor) + strlen(os) + strlen(abi) + 4 + 1;
 
-    char* out = (char*)malloc(len);
-    if (!out)
-    {
-        log_l("Unable to allocate target group string.", CRITICAL);
-        return NULL;    // don't return a static string against failure
-    }
+bool host_is_windows(void)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    return true;
+#else
+    return false;
+#endif
+}
 
-    strcat(out, arch);
-    strcat(out, "-");
-    strcat(out, vendor);
-    strcat(out, "-");
-    strcat(out, os);
-    strcat(out, "-");
-    strcat(out, abi);
+bool host_is_posix(void)
+{
+#if defined(__unix__) || defined(__unix) || \
+    defined(__APPLE__) || defined(__MACH__) || \
+    defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
+    defined(__OpenBSD__) || defined(__DragonFly__) || defined(__sun) || \
+    defined(_AIX) || defined(__hpux)
+    return true;
+#else
+    return false;
+#endif
+}
 
-    // snprintf(out, len, "%s-%s-%s-%s", arch, vendor, os, abi);
-    return out;
-    // malloced string is then owned by caller**
+bool host_is_bsd(void)
+{
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    return true;
+#else
+    return false;
+#endif
 }
 
 
 
+// ==== Internal helpers ====
+
+const char* normalize_path(const char* path)
+{
+    if (!path) return NULL;
+
+    size_t len = strlen(path);
+    char* out = (char*)malloc(len + 1);
+    if (!out) return NULL;
+
+    char sep = host_is_windows() ? '\\' : '/';
+    char prev = 0;
+    size_t j = 0;
+
+    for (size_t i = 0; i < len; ++i) {
+        char c = path[i];
+
+        // Convert '/' to platform separator on Windows
+        if (host_is_windows() && c == '/') c = '\\';
+
+        // Collapse repeated separators
+        if (c == sep && prev == sep) continue;
+
+        out[j++] = c;
+        prev = c;
+    }
+
+    // Remove trailing separator (except for root)
+    if (j > 1 && out[j - 1] == sep) j--;
+
+    out[j] = '\0';
+    return out;
+}
+
+const char* resolve_full_path(const char* relative_path)
+{
+    return "";
+}
+
 
 // ==== Interface ====
 
-bool make_dir(const char* path);
+bool create_dir(const char* path);
 
 const char* get_cwd(void);
 bool set_cwd(const char* path);

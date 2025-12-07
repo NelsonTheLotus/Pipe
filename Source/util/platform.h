@@ -5,6 +5,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Platform independent inclusions
+#if defined(_WIN32)
+    #include <windows.h>
+    #include <direct.h>
+    #define PATH_MAX 260
+#else
+    #include <unistd.h>
+    #include <limits.h>
+#endif
+
+
 // ==== PLATFORM ENUMS ====
 
 typedef enum {
@@ -21,7 +32,7 @@ typedef enum {
     PLATFORM_ARCH_MIPS64,
     
     PLATFORM_ARCH_COUNT
-} targetArch;
+} hostArch;
 
 typedef enum {
     PLATFORM_VENDOR_UNKNOWN = 0,
@@ -35,7 +46,7 @@ typedef enum {
     PLATFORM_VENDOR_HP,       // "hp" (HP-UX)
 
     PLATFORM_VENDOR_COUNT
-} targetVendor;
+} hostVendor;
 
 typedef enum {
     PLATFORM_ABI_UNKNOWN = 0,
@@ -48,7 +59,7 @@ typedef enum {
     PLATFORM_ABI_HPUX,
     
     PLATFORM_ABI_COUNT
-} targetAbi;
+} hostAbi;
     
 typedef enum {
     PLATFORM_OS_UNKNOWN = 0,
@@ -66,31 +77,31 @@ typedef enum {
     PLATFORM_OS_UNIX_GENERIC,
 
     PLATFORM_OS_COUNT
-} targetOS;
+} hostOS;
 
 
 
-// ==== System Reflection Functions ====
+// ==== Host System Reflection Functions ====
+hostArch get_host_arch(void);
+hostVendor get_host_vendor(void);
+hostAbi get_host_abi(void);
+hostOS get_host_os(void);
 
-targetArch get_target_arch(void);
-targetVendor get_target_vendor(void);
-targetAbi get_target_abi(void);
-targetOS get_target_os(void);
+const char* get_host_group_name(void);
+const char* get_host_arch_name(void);
+const char* get_host_vendor_name(void);
+const char* get_host_abi_name(void);
+const char* get_host_os_name(void);
 
-char* get_target_group_name(void);
-const char* get_target_arch_name(void);
-const char* get_target_vendor_name(void);
-const char* get_target_abi_name(void);
-const char* get_target_os_name(void);
+bool host_is_windows(void);
+bool host_is_posix(void);
+bool host_is_bsd(void);
 
-int platform_is_posix(void);
-int platform_is_bsd(void);
 
-/* -----------------------------------------------------------
-   FILE / ENV / CACHE API (same as before)
-   ----------------------------------------------------------- */
 
-const char* platform_env_get(const char* var);
+// ==== System control ====
+
+/*const char* platform_env_get(const char* var);
 int platform_env_set(const char* var, const char* value);
 int platform_env_exists(const char* var);
 
@@ -112,3 +123,12 @@ char* platform_cache_read(const char* key);
 uint64_t platform_timestamp_ms(void);
 char* platform_join_path(const char* a, const char* b);
 void platform_free(void* p);
+*/
+
+// ==== Interface ====
+
+bool create_dir(const char* path);
+// stat()
+
+const char* get_cwd(void);
+bool set_cwd(const char* path);

@@ -46,12 +46,8 @@ int main(int argc, char* argv[])
     // Step 3: Process
 
     // Step 4: Execute
-    char* groupString = get_target_group_name();
-    if(groupString != NULL)
-    {
-        printf("Target group is: %s\n", groupString);
-        free(groupString);
-    }
+    const char* groupString = get_host_group_name();
+    printf("Hosting group is: %s\n", groupString);
 
     clear_config(settings);
     close_logging();
