@@ -21,7 +21,7 @@ struct Config{
 }Config;
 
 
-Config* parse_settings(int argc, const char* const argv[]);
+const Config* parse_settings(int argc, const char* const argv[]);
 void clear_config();
 
 void print_help();

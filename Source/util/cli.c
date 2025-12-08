@@ -137,7 +137,7 @@ Parameter get_next_parameter(const int argc, int *index, const char* const argv[
  * Iterates through CLI options and classifies them into their 
  * corresponding setting in the Config structure. 
 */
-Config* parse_settings(int argc, const char* const argv[])
+const Config* parse_settings(int argc, const char* const argv[])
 {
     int counter = 0;
 

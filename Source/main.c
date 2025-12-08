@@ -8,28 +8,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void printStatuses(const char* statusString)
-{
-    printf("PRINTING STAUSES: %s\n", statusString);
-}
-
-void clearCache()
-{
-    log_full("CACHE CLEARED", WARNING, SYSTEM);
-}
-
-void loadCache()
-{
-    log_msg("LOADING CACHE..."); // determine weather cache is valid or stale. (kinda)
-}
-
 
 
 int main(int argc, char* argv[])
 {
     // register before parsing; no need to clear this job
     register_cleanup(&clear_config);
-    Config* settings = parse_settings(argc, (const char* const*)argv);
+    const Config* settings = parse_settings(argc, (const char* const*)argv);
 
     // Actionnable settings
     if(settings->verbose) set_verbosity(VERBOSE);
@@ -40,11 +25,10 @@ int main(int argc, char* argv[])
     if(!settings->atomic)
         cache = load_cache();
     register_cleanup(&close_cache);
+    log_status(settings->statuses);
 
-    if(settings->statuses != NULL)
-        printStatuses(settings->statuses);
-    else if(settings->clear)
-        clearCache();
+    if(settings->clear)
+        clear_cache();
 
     // Step 2: Read
 

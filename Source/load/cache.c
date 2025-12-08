@@ -3,9 +3,11 @@
 #include "../global.h"
 #include "../util/util.h"
 
+#include <string.h>
+
 #define CACHE_FOLDER "./.pipe"
 
-#include <stdio.h>
+#include <stdio.h>  // for log status, temp
 #include <errno.h>
 
 
@@ -34,7 +36,6 @@ static bool create_cache(void)
 // ==== Interface ====
 const Cache *load_cache()
 {
-    printf("LOADING CACHE");
     fileStat cacheStat;
 
     // first attempt, if error, try to create cache folder
@@ -61,5 +62,16 @@ void close_cache()
 
 void clear_cache()
 {
+    log_full("CLEARING CACHE", WARNING, SYSTEM);
+    return;
+}
+
+void log_status(const char* status_array)
+{
+    if(!status_array || !*status_array) return;
+
+    for(size_t index = 0; index < strlen(status_array); index++)
+        printf("Status %zu: %c", index, status_array[index]);
+
     return;
 }
