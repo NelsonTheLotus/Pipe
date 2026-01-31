@@ -20,8 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <errno.h>
-#include <stdio.h>  // for snprintf
 
 // --- Platform dependent inclusions ---
 #if defined(_WIN32)
@@ -272,363 +270,37 @@ bool host_is_bsd(void)
 
 
 
-// ==== Internal helpers ====
+// ==== Platform functions ====
 
-//* Normalize path by modifying string.
-static bool normalize_path(char* path)
+const char* get_cwd(char* buf, int size)   // don't even check if on linux yet
 {
-    size_t norm_index = 0;
-
-    char prevChar = '\0';
-
-    for(size_t char_index = 0; path[char_index]; char_index++) 
-    {
-        char c = path[char_index];
-        if(c == '/')
-        {
-            if(prevChar==PATH_SEPARATOR) continue; // collapse duplicate seperators
-            if(host_is_windows()) c = PATH_SEPARATOR;
-        } 
-
-        path[norm_index++] = c;
-        prevChar = c;
-    }
-
-    // Remove trailing separator (except for root)
-    if(norm_index>1 && prevChar==PATH_SEPARATOR) norm_index--;
-    path[norm_index] =  '\0';
-    return true;
+    return getcwd(buf, size);
 }
 
-//* Standardize path by modifiying string
-static bool standardize_path(char* path)
+
+fileStat stat_path(const char* path)
 {
-    size_t std_index = 0;
+    fileStat returnStat = (fileStat){false, FILE_TYPE_NONE, 0, false, false};
 
-    // const char sep = host_is_windows() ? '\\' : '/';
-    char prevChar = '\0';
+    if(path == NULL) return returnStat;
+    struct stat path_stat;
 
-    for(size_t char_index = 0; path[char_index]; char_index++) 
-    {
-        char c = path[char_index];
-        if(prevChar=='/' && c==PATH_SEPARATOR) continue;
-        if(c == '\\') c = '/';  // only standardize the non-standard '\\'
+    if(stat(path, &path_stat) == -1) return returnStat;
+    
+    returnStat.exists = true;
+    if(S_ISREG(path_stat.st_mode)) returnStat.type = FILE_TYPE_FILE;
+    else if(S_ISDIR(path_stat.st_mode)) returnStat.type = FILE_TYPE_DIR;
+    else returnStat.type = FILE_TYPE_ANY;
+    returnStat.mtime = path_stat.st_mtime;
+    if(access(path, R_OK) == 0) returnStat.readAllow = true;
+    if(access(path, W_OK) == 0) returnStat.writeAllow = true;
 
-        path[std_index++] = c;
-        prevChar = c;
-    }
-
-    // Remove trailing separator (except for root)
-    if(std_index>1 && prevChar==PATH_SEPARATOR) std_index--;
-    path[std_index] =  '\0';
-    return true;
-}
-
-// static const char* resolve_full_path(const char* relative_path, char* absolute_path, size_t max_size)
-// {
-//     return "";
-// }
-
-#if defined(_WIN32)
-static uint64_t get_std_filetime(const FILETIME* ft)
-{
-    ULARGE_INTEGER ull;
-    ull.LowPart = ft->dwLowDateTime;
-    ull.HighPart = ft->dwHighDateTime;
-    return (ull.QuadPart / 10000000ULL) - 11644473600ULL; // Windows -> Unix epoch
-}
-#else
-static uint64_t get_std_filetime(time_t t)
-{
-    return (uint64_t)t; // POSIX already in seconds
-}
-#endif
-
-// ==== Interface ====
-
-const char *get_cwd(void)
-{
-    static char buf[MAX_PATH_SIZE];
-
-#if defined(_WIN32)
-    // _getcwd sets errno on failure
-    if (_getcwd(buf, (int)sizeof(buf)) == NULL) return NULL;
-#else
-    // getcwd sets errno on failure (e.g. ERANGE if buffer too small)
-    if (getcwd(buf, sizeof(buf)) == NULL) return NULL;
-#endif
-
-    standardize_path(buf);
-    return buf;
-}
-
-bool set_cwd(const char *path)
-{
-    if (!path || !*path) return false;
-
-    char* norm_path = (char*)malloc((strlen(path)+1)*sizeof(char));
-    if(norm_path) log_l("set_cwd: Could not allocate required memory. Attempting without path normalization.", CRITICAL);
-    else
-    {
-        strncpy(norm_path, path, strlen(path)+1);
-        normalize_path(norm_path);
-        path = norm_path;
-    }
-
-    int chdir_res = false;
-#if defined(_WIN32)
-    chdir_res = !_chdir(path);   // _chdir sets errno
-#else
-    chdir_res = !chdir(path);    // chdir sets errno
-#endif
-
-    if(norm_path) free(norm_path);
-    return chdir_res;
-}
-
-/*
- * Modifications to be made: if the file or directory does not exist, stat returns false.
- * This was not originally intended, but maybe it should be.
- */
-bool stat_path(const char* path, fileStat* out)
-{
-    if (!path || !out) return false;
-
-#if defined(_WIN32)
-    WIN32_FILE_ATTRIBUTE_DATA data;
-    if (!GetFileAttributesExA(path, GetFileExInfoStandard, &data)) {
-        out->exists = false;
-        out->type = FILE_TYPE_NONE;
-        out->mtime = 0;
-        return false;
-    }
-
-    out->exists = true;
-    out->type = (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? FILE_TYPE_DIR : FILE_TYPE_FILE;
-    out->mtime = get_std_filetime(&data.ftLastWriteTime);
-
-#else
-    struct stat st, target;
-
-    if (lstat(path, &st) != 0) {
-        out->exists = false;
-        out->type = FILE_TYPE_NONE;
-        out->mtime = 0;
-        return false;
-    }
-
-    out->exists = true;
-
-    if (S_ISLNK(st.st_mode)) {
-        // symlink: follow target
-        if (stat(path, &target) == 0) {
-            if (S_ISDIR(target.st_mode))
-                out->type = FILE_TYPE_DIR;
-            else if (S_ISREG(target.st_mode))
-                out->type = FILE_TYPE_FILE;
-            else
-                out->type = FILE_TYPE_NONE;
-            out->mtime = get_std_filetime(target.st_mtime);
-        } else {
-            // dangling symlink
-            out->type = FILE_TYPE_NONE;
-            out->mtime = 0;
-        }
-    } else {
-        if (S_ISDIR(st.st_mode))
-            out->type = FILE_TYPE_DIR;
-        else if (S_ISREG(st.st_mode))
-            out->type = FILE_TYPE_FILE;
-        else
-            out->type = FILE_TYPE_NONE;
-        out->mtime = get_std_filetime(st.st_mtime);
-    }
-#endif
-
-    return true;
+    return returnStat;
 }
 
 bool create_dir(const char* path)
 {
-    if (!path || !*path) {
-        errno = EINVAL;
-        return false;
-    }
-
-    fileStat st;
-    if (stat_path(path, &st)) {
-        if (st.type == FILE_TYPE_DIR) return true; // already exists
-        if (st.exists) {
-            errno = ENOTDIR;
-            return false; // exists but not a directory
-        }
-    }
-
-    // Recursively create parent
-    char parent[MAX_PATH_SIZE];
-    strncpy(parent, path, sizeof(parent));
-    parent[sizeof(parent)-1] = '\0';
-
-    // Remove trailing slash
-    size_t len = strlen(parent);
-    while (len > 0 && (parent[len-1] == '/' || parent[len-1] == '\\')) {
-        parent[len-1] = '\0';
-        len--;
-    }
-
-    // Find last path separator
-    char* last_sep = strrchr(parent, '/');
-#if defined(_WIN32)
-    char* last_sep_win = strrchr(parent, '\\');
-    if (!last_sep || (last_sep_win && last_sep_win > last_sep)) last_sep = last_sep_win;
-#endif
-
-    if (last_sep) {
-        *last_sep = '\0';
-        if (strlen(parent) > 0 && !create_dir(parent))
-            return false; // failed to create parent
-    }
-
-    // Create directory itself
-#if defined(_WIN32)
-    if (_mkdir(path) != 0 && errno != EEXIST) return false;
-#else
-    if (mkdir(path, 0755) != 0 && errno != EEXIST) return false;
-#endif
-
+    if(path == NULL) return false;
+    if(mkdir(path, 0777) == -1) return false;
     return true;
 }
-
-bool join_path(char* source, const char* target, const size_t max_source_size)
-{
-    if (!source || !target || max_source_size == 0) return false;
-
-    size_t len_source = strlen(source);
-    size_t len_target = strlen(target);
-
-    if (len_source + len_target + 2 > max_source_size) {
-        // +2: one for possible separator, one for null terminator
-        return false;
-    }
-
-    // Add separator if needed
-    if (len_source > 0 && source[len_source - 1] != '/' && source[len_source - 1] != '\\') {
-        source[len_source] = PATH_SEPARATOR;
-        len_source++;
-        source[len_source] = '\0';
-    }
-
-    // Skip leading separator in target to avoid duplicate
-    if (target[0] == '/' || target[0] == '\\') target++;
-
-    // Concatenate
-    strncat(source, target, max_source_size - len_source - 1);
-    return true;
-}
-
-bool list_path(const char* path, fileType filter, char*** out_entries, size_t* out_count)
-{
-    if (!path || !out_entries || !out_count) return false;
-    *out_entries = NULL;
-    *out_count = 0;
-
-#if defined(_WIN32)
-    char search_path[MAX_PATH_SIZE];
-    snprintf(search_path, sizeof(search_path), "%s\\*", path);
-
-    WIN32_FIND_DATAA fd;
-    HANDLE h = FindFirstFileA(search_path, &fd);
-    if (h == INVALID_HANDLE_VALUE) return false;
-
-    size_t capacity = 16;
-    size_t count = 0;
-    char** entries = (char**)malloc(capacity * sizeof(char*));
-    if (!entries) { FindClose(h); return false; }
-
-    do {
-        const char* name = fd.cFileName;
-        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
-
-        fileType type = (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? FILE_TYPE_DIR : FILE_TYPE_FILE;
-        if (filter != FILE_TYPE_NONE && type != filter) continue;
-
-        if (count >= capacity) {
-            capacity *= 2;
-            char** tmp = (char**)realloc(entries, capacity * sizeof(char*));
-            if (!tmp) { // cleanup
-                for (size_t i = 0; i < count; i++) free(entries[i]);
-                free(entries);
-                FindClose(h);
-                return false;
-            }
-            entries = tmp;
-        }
-
-        entries[count] = _strdup(name);
-        if (!entries[count]) continue;
-        count++;
-    } while (FindNextFileA(h, &fd));
-
-    FindClose(h);
-    *out_entries = entries;
-    *out_count = count;
-    return true;
-
-#else
-    DIR* dir = opendir(path);
-    if (!dir) return false;
-
-    size_t capacity = 16;
-    size_t count = 0;
-    char** entries = (char**)malloc(capacity * sizeof(char*));
-    if (!entries) { closedir(dir); return false; }
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        const char* name = entry->d_name;
-        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
-
-        // Determine type
-        fileType type = FILE_TYPE_NONE;
-#ifdef DT_DIR
-        if (entry->d_type == DT_DIR) type = FILE_TYPE_DIR;
-        else if (entry->d_type == DT_REG) type = FILE_TYPE_FILE;
-        else {
-            char tmp[MAX_PATH_SIZE];
-            snprintf(tmp, sizeof(tmp), "%s/%s", path, name);
-            fileStat st;
-            if (stat_path(tmp, &st)) type = st.type;
-        }
-#else
-        char tmp[MAX_PATH_SIZE];
-        snprintf(tmp, sizeof(tmp), "%s/%s", path, name);
-        fileStat st;
-        if (stat_path(tmp, &st)) type = st.type;
-#endif
-
-        if (filter != FILE_TYPE_NONE && type != filter) continue;
-
-        if (count >= capacity) {
-            capacity *= 2;
-            char** tmp2 = (char**)realloc(entries, capacity * sizeof(char*));
-            if (!tmp2) {
-                for (size_t i = 0; i < count; i++) free(entries[i]);
-                free(entries);
-                closedir(dir);
-                return false;
-            }
-            entries = tmp2;
-        }
-
-        entries[count] = strdup(name);
-        if (!entries[count]) continue;
-        count++;
-    }
-
-    closedir(dir);
-    *out_entries = entries;
-    *out_count = count;
-    return true;
-#endif
-}
-

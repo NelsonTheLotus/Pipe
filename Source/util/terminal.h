@@ -1,4 +1,5 @@
 #pragma once
+// Deals with printing and parsing things to a from the terminal
 
 #include "../global.h"
 

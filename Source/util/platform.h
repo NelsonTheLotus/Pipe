@@ -83,6 +83,8 @@ typedef struct {
     bool exists;
     fileType type;
     uint64_t mtime; // modification time, standardized to unix-time
+    bool readAllow;
+    bool writeAllow;
 } fileStat;
 
 
@@ -108,33 +110,10 @@ bool host_is_bsd(void);
 // ==== Interface ====
 
 //* Get the current working directory in standard form.
-const char* get_cwd(void);
-//* Set the current working directory in standard form.
-bool set_cwd(const char* path);
+const char* get_cwd(char* buf, int size);
 
-//* Get path information. File can be file or directory. Returns 0 on success.
-bool stat_path(const char* path, fileStat* out);
+//* Get path information. File can be file or directory.
+fileStat stat_path(const char* path);
 
-//* Create desired path. Returns 0 on success.
+//* Create desired path. Returns true on success.
 bool create_dir(const char* path);
-//* file creation is already handeled by the C fopen
-
-/*
- * Concatenates `target` to `source`, adding a separator if necessary.
- * 
- * @param source The original path, will be modified in-place.
- * @param target The path to append.
- * @param max_source_size The total size of the `source` buffer.
- * @return true if concatenation succeeded, false if buffer would overflow.
- */
-bool join_path(char* source, const char* target, const size_t max_source_size);
-
-/*
- * out_entries: pointer to array of char* (allocated via malloc), must free by caller
- * out_count: number of entries
- * filter: FILE_TYPE_NONE = all, FILE_TYPE_FILE = files only, FILE_TYPE_DIR = dirs only
- */
-bool list_path(const char* path, fileType filter, char*** out_entries, size_t* out_count);
-
-
-//* Get system time.

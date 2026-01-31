@@ -63,7 +63,7 @@ LogLevel get_std_verbosity(void);
 
 //* Open a file for logging
 bool set_log_file(const char* path, bool clearFile);
-//* Write current log stack to file and close
+//* Write current log stack to file and close without cleanup.
 void close_log_file(void);
 
 //* Enable logging

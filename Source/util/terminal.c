@@ -1,4 +1,4 @@
-#include "cli.h"
+#include "terminal.h"
 
 #include "log.h"
 

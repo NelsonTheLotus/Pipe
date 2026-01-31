@@ -2,7 +2,7 @@
 
 #define UTIL_PUBLIC
 
-#include "cli.h"        // to interface with the CLI (options parsing, ...)
+#include "terminal.h"        // to interface with the CLI (options parsing, ...)
 #include "log.h"        // to log the process
 #include "platform.h"   // to have platform-(in)dependent code
 
