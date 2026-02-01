@@ -1,4 +1,4 @@
-#define LOG_INTERNAL    // Access private_functions
+#define LOG_INTERNAL    // Access private functions
 #include "log.h"
 #undef LOG_INTERNAL     // Avoid conflicts with other defs
 

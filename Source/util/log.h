@@ -20,7 +20,7 @@ typedef enum LogLevel
 typedef enum LogSource
 {
 #ifdef LOG_INTERNAL         // Don't allow access unless it's log.c
-    STATIC_FALLBACK = -1,    // Static fallback logs
+    STATIC_FALLBACK = -1,    // Static fallback logs (in case of logging failures)
 #endif
     NONE = 0,
     SYSTEM = 1,
