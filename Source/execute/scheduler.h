@@ -22,5 +22,6 @@ typedef struct
 } CommandResult;
 
 
-void init_executors(unsigned int numJobs);
+void init_workers(unsigned int numJobs);
 CommandResult runCommand(const ShellCommand command);
+void close_workers(void);

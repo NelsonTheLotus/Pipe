@@ -38,8 +38,9 @@ int main(int argc, char* argv[])
     // Step 3: Process
 
     // Step 4: Execute
-    init_executors(settings->jobs);
-    ShellCommand newCommand = (ShellCommand){"cd build", "/", 0};
+    init_workers(settings->jobs);
+    register_cleanup(&close_workers);
+    ShellCommand newCommand = (ShellCommand){"cd build", "./", 0};
     runCommand(newCommand);
     // runPipe();
 
@@ -47,6 +48,7 @@ int main(int argc, char* argv[])
     const char* groupString = get_host_group_name();
     printf("Hosting group is: %s\n", groupString);
 
+    close_workers();
     clear_config(settings);
     close_logging();
     return 0;

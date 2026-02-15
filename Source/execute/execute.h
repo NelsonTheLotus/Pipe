@@ -5,4 +5,6 @@
 
 #define EXECUTE_PUBLIC
 #include "scheduler.h"
+#include "worker.h"
+#include "shell.h"
 #undef EXECUTE_PUBLIC
