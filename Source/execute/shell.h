@@ -3,14 +3,27 @@
 // issues it through pipes, waits for the output
 // and returns the result back to it's linked worker.
 
+#include <unistd.h>
+#include "../global.h"
+
+
+#define GRACEFUL_TIMEOUT 2
+#define FORCEFUL_TIMEOUT 2
+
 
 #ifndef EXECUTE_PUBLIC
 
 typedef struct {
-    int placeholder;
+    pid_t shell_pid;
+    int shell_input;
+    int shell_output;
+
+    char read_buff[256];
+    int err_code;
 } Shell;
 
 
-void close_shell(Shell* shell);
+Shell create_shell(void);
+int destroy_shell(Shell* shell, bool force);
 
 #endif

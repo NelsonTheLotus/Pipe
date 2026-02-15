@@ -26,13 +26,11 @@ void init_workers(unsigned int numJobs)
         return;
     }
     for(size_t workerID = 0; workerID < numWorkers; workerID++)
-    {
         workers[workerID] = new_worker(workerID);
-    }
 
-    char buff[100];
-    sprintf(buff, "%u worker(s) initialized! (placeholder)", numWorkers);
-    log_l(buff, INFO);
+    // char buff[100];
+    // sprintf(buff, "%u worker(s) initialized! (placeholder)", numWorkers);
+    // log_l(buff, INFO);
 }
 
 

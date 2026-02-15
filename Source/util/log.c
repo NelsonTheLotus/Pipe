@@ -109,7 +109,7 @@ static LogEntry fatal_job_alloc =
 
 // ==== Internal Helpers ====
 
-const char* lvl_to_str(LogLevel lvl)
+static const char* lvl_to_str(LogLevel lvl)
 {
     switch (lvl)
     {
@@ -125,7 +125,7 @@ const char* lvl_to_str(LogLevel lvl)
     return "VOID";
 }
 
-const char* src_to_str(LogSource src)
+static const char* src_to_str(LogSource src)
 {
     switch (src)
     {
@@ -143,7 +143,7 @@ const char* src_to_str(LogSource src)
 
 
 //* Reduce log_stack up to boundary
-void clean_log_stack(LogEntry* boundary)
+static void clean_log_stack(LogEntry* boundary)
 {
     LogEntry *currentEntry = mainStack.stackHead;
     LogEntry *previousEntry = NULL;
@@ -163,14 +163,14 @@ void clean_log_stack(LogEntry* boundary)
 }
 
 //* Clear the log stack
-void clear_log_stack()
+static void clear_log_stack()
 {
     clean_log_stack(NULL);
     return;
 }
 
 //* Clear the job list
-void free_callback_list()
+static void free_callback_list()
 {
     if(mainStack.callbackList != NULL)
         free(mainStack.callbackList);
@@ -178,7 +178,7 @@ void free_callback_list()
 }
 
 //* Run all cleanup callback functions upon fatal
-void cleanup()
+static void cleanup()
 {
     
     for(size_t jobID = 0; jobID < mainStack.callbackSize; jobID++)
@@ -194,7 +194,7 @@ void cleanup()
 }
 
 //* Prints formatted output to desired outputs
-void print_log(const LogEntry* log)
+static void print_log(const LogEntry* log)
 {
     if(log == NULL) return;
     if(mainStack.stdSupress) return;    // don't print if supressing std
@@ -214,7 +214,7 @@ void print_log(const LogEntry* log)
 }
 
 //* Shchedule a new log from entry
-void log_entry(LogEntry* logEntry)
+static void log_entry(LogEntry* logEntry)
 {
     // Set time
     logEntry->timestamp = clock();

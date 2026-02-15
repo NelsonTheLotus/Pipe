@@ -12,7 +12,7 @@
 
 typedef struct {
     size_t id;
-    Shell* executor;
+    Shell executor;
 } Worker;
 
 
