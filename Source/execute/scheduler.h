@@ -1,9 +1,12 @@
 #pragma once
+// Scheduler manages the input command stream and
+// dispatches the commands to the appropriate lanes (queues)
+// from which workers will pull. It listens for errors in workers
+// and halts if a fatal error occured.d
 
 
 typedef struct 
 {
-
     const char* command;
     const char* cwd;
     unsigned int timeout;
@@ -14,8 +17,8 @@ typedef struct
 {
     int exit_code;
     int signal;
-    char *stdout;
-    char *stderr;
+    char *stdout_buff;
+    char *stderr_buff;
 } CommandResult;
 
 
