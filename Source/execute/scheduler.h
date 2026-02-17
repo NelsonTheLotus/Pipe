@@ -4,6 +4,8 @@
 // from which workers will pull. It listens for errors in workers
 // and halts if a fatal error occured.d
 
+#include <pthread.h>
+
 
 typedef struct 
 {
@@ -20,6 +22,20 @@ typedef struct
     char *stdout_buff;
     char *stderr_buff;
 } CommandResult;
+
+
+
+typedef struct
+{
+    ShellCommand commands;
+    int head;
+    int tail;
+    int count;
+
+    pthread_mutex_t mutex;
+    pthread_cond_t not_full;    // allow main write
+    pthread_cond_t not_empty;   // allow thread reads
+} CommandQueue;
 
 
 void init_workers(unsigned int numJobs);

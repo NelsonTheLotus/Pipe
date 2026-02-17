@@ -22,7 +22,7 @@ void init_workers(unsigned int numJobs)
     workers = (Worker*)malloc(numWorkers*sizeof(Worker));
     if(workers == NULL)
     {
-        log_fatal("Could not allocate required workers. Stop.", SYSTEM);
+        log_fatal("Could not allocate required space for workers. Stop.", SYSTEM);
         return;
     }
     for(size_t workerID = 0; workerID < numWorkers; workerID++)

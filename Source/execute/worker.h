@@ -4,6 +4,7 @@
 // It then issues those commands to shell, waiting for the output.
 
 #include "shell.h"
+#include "../global.h"
 #include <stddef.h>
 
 
@@ -13,6 +14,7 @@
 typedef struct {
     size_t id;
     Shell executor;
+    bool halt;
 } Worker;
 
 
