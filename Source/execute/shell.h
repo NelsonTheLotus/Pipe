@@ -23,7 +23,7 @@ typedef struct {
 } Shell;
 
 
-Shell create_shell(void);
-int destroy_shell(Shell* shell, bool force);
+Shell new_shell(void);
+int stop_shell(Shell* shell, bool force);
 
 #endif

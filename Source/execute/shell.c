@@ -9,7 +9,7 @@
 #include <sys/wait.h>
 
 
-Shell create_shell(void)
+Shell new_shell(void)
 {
     // creates pipes
     int write_pipe[2];
@@ -68,7 +68,6 @@ Shell create_shell(void)
     newShell.shell_input = -1;
     newShell.shell_output = -1;
 
-    log_fatal("failed to open shell.", SYSTEM); //TODO: no log fatal, just report error, scheduler will manage.
     return newShell;
     // no log, since inside thread
 }
@@ -95,7 +94,7 @@ static int waitpid_timeout(pid_t pid, unsigned int timeout)
 }
 
 
-int destroy_shell(Shell* shell, bool force)
+int stop_shell(Shell* shell, bool force)
 {
     if(shell == NULL) return 0;
     int ret = 0;

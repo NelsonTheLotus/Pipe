@@ -21,7 +21,7 @@ void runPipe()
 int main(int argc, char* argv[])
 {
     // register before parsing; no need to clear this job
-    register_cleanup(&clear_config);
+    register_cleanup(clear_config);
     const Config* settings = parse_settings(argc, (const char* const*)argv);
 
     // Step 0: Prepare
@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 
     // Step 4: Execute
     init_workers(settings->jobs);
-    register_cleanup(&close_workers);
+    register_cleanup(close_workers);
     ShellCommand newCommand = (ShellCommand){"cd build", "./", 0};
     runCommand(newCommand);
     // runPipe();

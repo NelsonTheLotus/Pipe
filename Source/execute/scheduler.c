@@ -9,28 +9,32 @@
 
 // ==== Static worker references ====
 static unsigned int numWorkers;
-static Worker* workers = NULL;
-
+static WorkerTracker* trackers = NULL;
+static CommandQueue command_queue;
 
 
 void init_workers(unsigned int numJobs)
 {
-    //create a worker pool. Each worker has a corresponding single sequencial shell.
+    // Setup queue
+    pthread_mutex_init(&command_queue.mutex_lock, NULL);
+    pthread_cond_init(&command_queue.not_full, NULL);
+    pthread_cond_init(&command_queue.not_empty, NULL);
+
     if(numJobs == 0) numJobs = 1;
     numWorkers = numJobs;
 
-    workers = (Worker*)malloc(numWorkers*sizeof(Worker));
-    if(workers == NULL)
+    trackers = (WorkerTracker*)malloc(numWorkers*sizeof(WorkerTracker));
+    if(trackers == NULL)
     {
         log_fatal("Could not allocate required space for workers. Stop.", SYSTEM);
         return;
     }
     for(size_t workerID = 0; workerID < numWorkers; workerID++)
-        workers[workerID] = new_worker(workerID);
-
-    // char buff[100];
-    // sprintf(buff, "%u worker(s) initialized! (placeholder)", numWorkers);
-    // log_l(buff, INFO);
+    {
+        trackers[workerID] = (WorkerTracker){workerID};
+        init_worker(&trackers[workerID], &command_queue);
+        run_worker(&trackers[workerID]);
+    }
 }
 
 
@@ -49,10 +53,10 @@ CommandResult runCommand(const ShellCommand command)
 
 void close_workers(void)
 {
-    if(workers == NULL) return;
+    if(trackers == NULL) return;
     for(size_t workerID = 0; workerID < numWorkers; workerID++)
     {
-        close_worker(&(workers[workerID]));
+        close_worker(&trackers[workerID], false);
     }
-    free(workers);
+    free(trackers);
 }

@@ -4,6 +4,7 @@
 // Run manages threads and shells
 
 #define EXECUTE_PUBLIC
+#include "command.h"
 #include "scheduler.h"
 #include "worker.h"
 #include "shell.h"
