@@ -16,10 +16,9 @@
 
 
 typedef struct {
-    size_t id;
+    unsigned int id;
     Shell executor;
     atomic_bool halt;   // graceful, finnish the queue
-    atomic_bool abort;  // forced, stop immediatly
     CommandQueue* queue;
     // TODO: halt vs abort vs stop
 
@@ -28,10 +27,10 @@ typedef struct {
 } WorkerTracker;
 
 
-WorkerTracker innit_worker(WorkerTracker* new_tracker, unsigned int worker_id);
+void init_worker(WorkerTracker* new_tracker, unsigned int worker_id);
 bool run_worker(WorkerTracker* tracker);
 void assign_queue(WorkerTracker* tracker, CommandQueue* new_queue);
-void stop_worker(WorkerTracker* tracker, bool abort);   // TODO: stop vs halt vs abort
+void stop_worker(WorkerTracker* tracker, bool abort);   // TODO: stop vs halt vs abort vs shutdown
 void destroy_worker(WorkerTracker* tracker);
 
 

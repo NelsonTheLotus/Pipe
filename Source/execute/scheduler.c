@@ -29,10 +29,10 @@ void init_workers(unsigned int numJobs)
         log_fatal("Could not allocate required space for workers. Stop.", SYSTEM);
         return;
     }
-    for(size_t workerID = 0; workerID < numWorkers; workerID++)
+    for(unsigned int workerID = 0; workerID < numWorkers; workerID++)
     {
-        trackers[workerID] = (WorkerTracker){workerID};
-        init_worker(&trackers[workerID], &command_queue);
+        init_worker(&trackers[workerID], workerID);
+        assign_queue(&trackers[workerID], &command_queue);
         run_worker(&trackers[workerID]);
     }
 }

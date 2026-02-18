@@ -3,8 +3,9 @@
 // issues it through pipes, waits for the output
 // and returns the result back to it's linked worker.
 
-#include <unistd.h>
 #include "../global.h"
+#include "command.h"
+#include <unistd.h>
 
 
 #define GRACEFUL_TIMEOUT 2
@@ -25,5 +26,6 @@ typedef struct {
 
 Shell new_shell(void);
 int stop_shell(Shell* shell, bool force);
+CommandResult issue_command(Shell* shell, const char* command);
 
 #endif

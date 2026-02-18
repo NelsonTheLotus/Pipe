@@ -117,3 +117,9 @@ int stop_shell(Shell* shell, bool force)
     waitpid(shell->shell_pid, &ret, 0);
     return ret;
 }
+
+
+CommandResult issue_command(Shell* shell, const char* command)
+{
+    return TODO;
+}

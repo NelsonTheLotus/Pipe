@@ -36,7 +36,7 @@ void init_worker(WorkerTracker* new_tracker, unsigned int worker_id)
     new_tracker->id = worker_id;
     new_tracker->executor = (Shell){-1};
     new_tracker->halt = true;   // default no-run
-    new_tracker->abort = false;   // default no-run
+    //new_tracker->abort = false;   // default no-run
     new_tracker->queue = NULL;
 
     pthread_mutex_init(&new_tracker->mutex_lock, NULL);
@@ -71,7 +71,7 @@ void stop_worker(WorkerTracker* tracker, bool abort)
     if(tracker == NULL) return;
 
     atomic_store(&tracker->halt, true);
-    if(abort) atomic_store(&tracker->abort, true);
+    //if(abort) atomic_store(&tracker->abort, true);
     int thread_return;
     pthread_join(tracker->thread_handle, NULL);
     printf("Worker thread closed.\n");
