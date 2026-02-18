@@ -26,23 +26,24 @@ void init_workers(unsigned int numJobs)
     trackers = (WorkerTracker*)malloc(numWorkers*sizeof(WorkerTracker));
     if(trackers == NULL)
     {
-        log_fatal("Could not allocate required space for workers. Stop.", SYSTEM);
+        log_fatal(SYSTEM, "Could not allocate required space for workers. Stop.");
         return;
     }
     for(unsigned int workerID = 0; workerID < numWorkers; workerID++)
     {
         init_worker(&trackers[workerID], workerID);
         assign_queue(&trackers[workerID], &command_queue);
-        run_worker(&trackers[workerID]);
+        bool success = run_worker(&trackers[workerID]);
+        if(success) log_msg("Thread %u initialized.", trackers[workerID].id);
     }
 }
 
 
 CommandResult runCommand(const ShellCommand command)
 {
-    char buff[256];
-    sprintf(buff, "(placeholder) Running command: %s", command.command);
-    log_l(buff, INFO);
+    // char buff[256];
+    // sprintf(buff, "(placeholder) Running command: %s", command.command);
+    log_l(INFO, "(placeholder) Running command: %s\n", command.command);
 
     // pass command on to the appropriate thread (calculations required).
     // Thread will then manage the execution of the command with it's designated linked shell.
@@ -54,10 +55,11 @@ CommandResult runCommand(const ShellCommand command)
 void close_workers(void)
 {
     if(trackers == NULL) return;
-    for(size_t workerID = 0; workerID < numWorkers; workerID++)
+    for(unsigned int workerID = 0; workerID < numWorkers; workerID++)
     {
         stop_worker(&trackers[workerID], false);
         destroy_worker(&trackers[workerID]);
+        log_msg("Thread %u destroyed.", trackers[workerID].id);
     }
     free(trackers);
 }

@@ -18,7 +18,6 @@ static void* worker_loop(void* arg)
     pthread_mutex_lock(&tracker->mutex_lock);
 
     tracker->executor = new_shell();
-    printf("Worker %d is running.\n", tracker->id);
     int retCode = stop_shell(&tracker->executor, false);
 
     pthread_mutex_unlock(&tracker->mutex_lock);
@@ -74,7 +73,6 @@ void stop_worker(WorkerTracker* tracker, bool abort)
     //if(abort) atomic_store(&tracker->abort, true);
     int thread_return;
     pthread_join(tracker->thread_handle, NULL);
-    printf("Worker thread closed.\n");
     // TODO: timeout + cancel thread
     // TODO: fetch thread exit codef properly
 

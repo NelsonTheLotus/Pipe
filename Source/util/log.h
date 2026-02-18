@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../global.h"
+#include <stdarg.h>
 
 
 // ==== External Structures and types ====
@@ -35,15 +36,15 @@ typedef enum LogSource
 // ==== Main Interface functions ====
 
 //* Create a new log
-void log_full(const char* msg, LogLevel lvl, LogSource source);
+void log_full(LogSource src, LogLevel lvl, const char* msg, ...);
 //* log a message (INFO; NONE)
-void log_msg(const char* msg);
+void log_msg(const char* msg, ...);
 //* log a messgae with <lvl>
-void log_l(const char* msg, LogLevel lvl);
+void log_l(LogLevel lvl, const char* msg, ...);
 //* log a message with type <source>
-void log_t(const char* msg, LogSource source);
+void log_t(LogSource source, const char* msg, ...);
 //* Log a fatal error
-void log_fatal(const char* msg, LogSource source);
+void log_fatal(LogSource source, const char* msg, ...);
 
 //* Finnish non-fatal logging gracefully
 void close_logging(void);

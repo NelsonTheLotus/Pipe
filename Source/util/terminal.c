@@ -190,7 +190,7 @@ const Config* parse_settings(int argc, const char* const argv[])
         error:
         case C_ERROR: // same as default
         default:
-            log_fatal("Could not allocate required space to parse CLI options.", CLI);
+            log_fatal(CLI, "Could not allocate required space to parse CLI options.");
             break;
         }
     }

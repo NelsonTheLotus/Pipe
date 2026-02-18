@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 
 
     const char* groupString = get_host_group_name();
-    printf("Hosting group is: %s\n", groupString);
+    log_msg("Hosting group is: %s\n", groupString);
 
     close_workers();
     clear_config(settings);

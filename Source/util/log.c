@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 
 
@@ -26,7 +27,7 @@ typedef enum ColorType
 
 typedef struct LogEntry
 {
-    const char* msg;
+    char* msg;
     LogLevel level;
     LogSource source;
     clock_t timestamp;
@@ -155,6 +156,7 @@ static void clean_log_stack(LogEntry* boundary)
         currentEntry = currentEntry->nextEntry;
         if(previousEntry->source = STATIC_FALLBACK) continue; // don't free static logs
 
+        free(previousEntry->msg);
         free(previousEntry);
     }
 
@@ -232,11 +234,7 @@ static void log_entry(LogEntry* logEntry)
     return;
 }
 
-
-
-// ==== Main Interface ====
-
-void log_full(const char* msg, LogLevel lvl, LogSource src)
+static void create_log(LogSource src, LogLevel lvl, const char* msg, va_list msg_args)
 {
     LogEntry *newEntry = (LogEntry*)malloc(sizeof(LogEntry));
 
@@ -248,36 +246,76 @@ void log_full(const char* msg, LogLevel lvl, LogSource src)
         return;
     }
 
-    newEntry->msg = msg;
+    size_t buf_size = strlen(msg)*sizeof(char);
+    char *msg_buf = (char*)malloc(buf_size);     // initial guess
+    if(msg_buf == NULL) log_entry(&fatal_malloc_log);
+
+    va_list args_copy;  // in case of vsnprintf failure
+    va_copy(args_copy, msg_args);
+    int needed = vsnprintf(msg_buf, buf_size, msg, args_copy);
+    if(needed >= buf_size)
+    {
+        buf_size = needed*sizeof(char);
+        msg_buf = realloc(msg_buf, buf_size);
+        if(msg_buf == NULL) log_entry(&fatal_malloc_log);
+        vsnprintf(msg_buf, buf_size, msg, msg_args);
+    }
+
+    newEntry->msg = msg_buf;
     newEntry->level = lvl;
     newEntry->source = src;
     newEntry->nextEntry = NULL;
-    
+
     log_entry(newEntry);
     return;
 }
 
-void log_msg(const char* msg)
+
+
+// ==== Main Interface ====
+
+void log_full(LogSource src, LogLevel lvl, const char* msg, ...)
 {
-    log_full(msg, INFO, NONE);
+    va_list msg_args;
+    va_start(msg_args, msg);
+    create_log(src, lvl, msg, msg_args);
+    va_end(msg_args);
     return;
 }
 
-void log_l(const char* msg, LogLevel lvl)
+void log_msg(const char* msg, ...)
 {
-    log_full(msg, lvl, NONE);
+    va_list msg_args;
+    va_start(msg_args, msg);
+    create_log(NONE, INFO, msg, msg_args);
+    va_end(msg_args);
     return;
 }
 
-void log_t(const char* msg, LogSource src)
+void log_l(LogLevel lvl, const char* msg, ...)
 {
-    log_full(msg, INFO, src);
+    va_list msg_args;
+    va_start(msg_args, msg);
+    create_log(NONE, lvl, msg, msg_args);
+    va_end(msg_args);
     return;
 }
 
-void log_fatal(const char* msg, LogSource src)
+void log_t(LogSource src, const char* msg, ...)
 {
-    log_full(msg, FATAL, src);
+    va_list msg_args;
+    va_start(msg_args, msg);
+    create_log(src, INFO, msg, msg_args);
+    va_end(msg_args);
+    return;
+}
+
+void log_fatal(LogSource src, const char* msg, ...)
+{
+    va_list msg_args;
+    va_start(msg_args, msg);
+    create_log(src, FATAL, msg, msg_args);
+    va_end(msg_args);
     return;
 }
 
@@ -340,7 +378,7 @@ bool set_log_file(const char* path, bool clearFile)
     else mainStack.logfile = fopen(path, "a");
     if(mainStack.logfile == NULL)
     {
-        log_full("Could not open log file: \"\"", CRITICAL, LOGGER); // TODO: Add attempted file path
+        log_full(LOGGER, CRITICAL, "Could not open log file: \"%s\"", path);
         log_set_enabled(false);
         return false;
     }
@@ -366,7 +404,7 @@ void log_set_enabled(bool enabled)
     else    // supress = true
     {
         if(mainStack.logfile == NULL)
-            log_full("No log file to write to.", WARNING, LOGGER);
+            log_full(LOGGER, WARNING, "No log file to write to.");
         write_file_logs();
         mainStack.stackFile = NULL;
     }
