@@ -28,9 +28,11 @@ typedef struct {
 } WorkerTracker;
 
 
-void init_worker(WorkerTracker* new_tracker, CommandQueue* command_queue);
+WorkerTracker innit_worker(WorkerTracker* new_tracker, unsigned int worker_id);
 bool run_worker(WorkerTracker* tracker);
-void close_worker(WorkerTracker* worker_tracker, bool abort);
+void assign_queue(WorkerTracker* tracker, CommandQueue* new_queue);
+void stop_worker(WorkerTracker* tracker, bool abort);   // TODO: stop vs halt vs abort
+void destroy_worker(WorkerTracker* tracker);
 
 
 #endif

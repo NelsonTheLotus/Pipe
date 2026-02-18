@@ -56,7 +56,8 @@ void close_workers(void)
     if(trackers == NULL) return;
     for(size_t workerID = 0; workerID < numWorkers; workerID++)
     {
-        close_worker(&trackers[workerID], false);
+        stop_worker(&trackers[workerID], false);
+        destroy_worker(&trackers[workerID]);
     }
     free(trackers);
 }
