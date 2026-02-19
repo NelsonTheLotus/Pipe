@@ -8,7 +8,8 @@
 
 typedef struct 
 {
-    const char* command;
+    const char* id_glob;
+    const char* cmd;
     const char* cwd;
     unsigned int timeout;
 } ShellCommand;
@@ -18,8 +19,7 @@ typedef struct
 {
     int exit_code;
     int signal;
-    char *stdout_buff;
-    char *stderr_buff;
+    char *output_buf;
 } CommandResult;
 
 

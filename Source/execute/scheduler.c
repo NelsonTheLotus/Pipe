@@ -42,13 +42,24 @@ void init_workers(unsigned int numJobs)
 CommandResult runCommand(const ShellCommand command)
 {
     // char buff[256];
-    // sprintf(buff, "(placeholder) Running command: %s", command.command);
-    log_l(INFO, "(placeholder) Running command: %s\n", command.command);
+    // sprintf(buff, "(placeholder) Running command: %s", command.cmd);
+    
+    Shell* executing_shell = &trackers[0].executor;
+    ShellCommand cmd = {"__terminate_cmd_1", "pwd", "/", 0};
+    //log_l(INFO, "(placeholder) Running command: %s with id: %s", cmd.cmd, cmd.id_glob);
 
+    if(executing_shell->shell_pid != -1)
+    {
+        issue_command(executing_shell, cmd);
+    }
+    else log_l(CRITICAL, "Shell closed; could not run.");
+    return "Call issue command through thread only, it knows if the shell is running and will issue itself"
+    "also prevents race conditions on issuing command and closing thread (ifcond above is not atomic or thread-safe.)"
+    
     // pass command on to the appropriate thread (calculations required).
     // Thread will then manage the execution of the command with it's designated linked shell.
 
-    return (CommandResult){0, 0, NULL, NULL};
+    return (CommandResult){0, 0, NULL};
 }
 
 

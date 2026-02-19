@@ -10,6 +10,7 @@
 
 #define GRACEFUL_TIMEOUT 2
 #define FORCEFUL_TIMEOUT 2
+#define SHELL_OUTPUT_BUFFER 8192
 
 
 #ifndef EXECUTE_PUBLIC
@@ -19,13 +20,13 @@ typedef struct {
     int shell_input;
     int shell_output;
 
-    char read_buff[256];
+    char read_buf[SHELL_OUTPUT_BUFFER];
     int err_code;
 } Shell;
 
 
 Shell new_shell(void);
 int stop_shell(Shell* shell, bool force);
-CommandResult issue_command(Shell* shell, const char* command);
+CommandResult issue_command(Shell* shell, ShellCommand command);
 
 #endif

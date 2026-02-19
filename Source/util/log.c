@@ -246,7 +246,7 @@ static void create_log(LogSource src, LogLevel lvl, const char* msg, va_list msg
         return;
     }
 
-    size_t buf_size = strlen(msg)*sizeof(char);
+    size_t buf_size = (strlen(msg)+1)*sizeof(char); // include null byte
     char *msg_buf = (char*)malloc(buf_size);     // initial guess
     if(msg_buf == NULL) log_entry(&fatal_malloc_log);
 
@@ -255,7 +255,7 @@ static void create_log(LogSource src, LogLevel lvl, const char* msg, va_list msg
     int needed = vsnprintf(msg_buf, buf_size, msg, args_copy);
     if(needed >= buf_size)
     {
-        buf_size = needed*sizeof(char);
+        buf_size = (needed+1)*sizeof(char); // include null byte
         msg_buf = realloc(msg_buf, buf_size);
         if(msg_buf == NULL) log_entry(&fatal_malloc_log);
         vsnprintf(msg_buf, buf_size, msg, msg_args);

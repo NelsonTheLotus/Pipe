@@ -6,6 +6,8 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <sys/wait.h>
 
 
@@ -94,6 +96,16 @@ static int waitpid_timeout(pid_t pid, unsigned int timeout)
 }
 
 
+// close open shell endpoints
+static void close_shell(Shell* shell)
+{
+    shell->shell_pid = -1;
+    close(shell->shell_input);
+    close(shell->shell_output);
+
+    return;
+}
+
 int stop_shell(Shell* shell, bool force)
 {
     if(shell == NULL) return 0;
@@ -106,20 +118,70 @@ int stop_shell(Shell* shell, bool force)
         ret = waitpid_timeout(shell->shell_pid, GRACEFUL_TIMEOUT);
     }
 
-    if(ret >= 0) return ret;
-    if(ret == -1 && errno != 0) return errno;
+    if(ret >= 0) {close_shell(shell); return ret;}
+    if(ret == -1 && errno != 0) {close_shell(shell); return errno;}
     kill(-(shell->shell_pid), SIGTERM);  // graceful force
     ret = waitpid_timeout(shell->shell_pid, FORCEFUL_TIMEOUT);
 
-    if(ret >= 0) return ret;
-    if(ret == -1 && errno != 0) return errno;
+    if(ret >= 0) {close_shell(shell); return ret;}
+    if(ret == -1 && errno != 0) {close_shell(shell); return errno;}
     kill(-(shell->shell_pid), SIGKILL);
     waitpid(shell->shell_pid, &ret, 0);
+    close_shell(shell);
     return ret;
 }
 
 
-CommandResult issue_command(Shell* shell, const char* command)
+// internal helper
+/* CommandResult capture_output(Shell* shell, const char* cmd_delimiter)
 {
-    return TODO;
+    char* read_buf = (char*)malloc(4096*sizeof(char));
+
+    bool cmd_done = false;
+    int chars_read = 0;
+    while(!cmd_done)
+    {
+        chars_read = read(shell->shell_output, read_buf, 4096);
+        if(chars_read == 0) break;  // EOF reached
+        if(chars_read == -1) break; // ERROR
+
+        char* line_start = read_buf;
+        char* newline_ptr = strchr(line_start, '\n');   // returns ptr to '\n'
+        if(newline_ptr == NULL) continue;
+        while(!strncmp(cmd_delimiter, line_start, newline_ptr-line_start))
+        {
+            line_start = newline_ptr+1;
+            newline_ptr = strchr(line_start, '\n');
+        }
+
+    }
+
+    //read a buffer
+    // parse for delimiter
+    // if no delimiter found 
+    // read_buffer
+} */
+
+
+CommandResult issue_command(Shell* shell, ShellCommand command)
+{
+    log_msg("Executing command: %s", command.cmd);
+    fflush(stdout);
+    write(shell->shell_input, command.cmd, strlen(command.cmd));
+    write(shell->shell_input, "\n", 1);
+
+    size_t echo_len = sizeof(char)*(strlen(command.id_glob)+6);
+    char* echo_buf = (char*)malloc(echo_len);  // strlen + "echo " + \0
+    // TODO: graceful thread failure on fail
+    snprintf(echo_buf, echo_len, "echo %s", command.id_glob);
+
+    write(shell->shell_input, echo_buf, echo_len);
+    write(shell->shell_input, "\n", 1);
+    printf("File descriptor is %d\n", shell->shell_input);
+    
+    //CommandResult result = capture_output(shell, command.id_glob);
+    CommandResult result;
+    read(shell->shell_output, result.output_buf, 4096);
+    printf("Output: %s\n", result.output_buf);
+    return result;
 }
