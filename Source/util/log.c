@@ -210,8 +210,6 @@ static void print_log(const LogEntry* log)
                                                               colors[log->level], lvl_to_str(log->level), colors[CLR_CLEAR],
                                                               colors[CLR_SOURCE], src_to_str(log->source), colors[CLR_CLEAR],
                                                               colors[CLR_MSG], log->msg, colors[CLR_CLEAR]);
-                                                              
-    // TODO: improve timestamp printing
     return;
 }
 
@@ -460,9 +458,4 @@ bool remove_cleanup(size_t jobID)
 }
 
 
-// TODO: Log printing formating --------------- (TIME)
-// TODO: Cleanup callbacks stack manipulation - (DONE)
-// TODO: Non-fatal cleanup + fatal cleanup ---- (DONE)
-// TODO: Add file+stream logging -------------- (DONE)
-// TODO: Add more logging interface functions - (DONE)
 

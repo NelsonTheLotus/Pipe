@@ -1,32 +1,25 @@
 #pragma once
-// Shell is the executor. It takes a command,
-// issues it through pipes, waits for the output
-// and returns the result back to it's linked worker.
 
-#include "../global.h"
 #include "command.h"
+
 #include <unistd.h>
 
 
-#define GRACEFUL_TIMEOUT 2
-#define FORCEFUL_TIMEOUT 2
-#define SHELL_OUTPUT_BUFFER 8192
+typedef struct shell
+{
+    pid_t pid;  // pid == -1 -> not running
+    int input_pipe;
+    int output_pipe;
 
-
-#ifndef EXECUTE_PUBLIC
-
-typedef struct {
-    pid_t shell_pid;
-    int shell_input;
-    int shell_output;
-
-    char read_buf[SHELL_OUTPUT_BUFFER];
-    int err_code;
+    bool halted;
+    int exit_code;
 } Shell;
 
 
-Shell new_shell(void);
-int stop_shell(Shell* shell, bool force);
-CommandResult issue_command(Shell* shell, ShellCommand command);
-
-#endif
+// Shell control
+Shell shell_init();             // creates a new shell struct
+bool shell_start(Shell* s);
+void shell_halt(Shell* s);
+void shell_resume(Shell* s);
+bool shell_stop(Shell* s, unsigned int timeout); // gracefull stop; timeout(0) -> sigterm, ret false
+void shell_kill(Shell* s, int timeout); // forceful termination; timeout(0) -> sigkill

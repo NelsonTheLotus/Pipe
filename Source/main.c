@@ -38,10 +38,14 @@ int main(int argc, char* argv[])
     // Step 3: Process
 
     // Step 4: Execute
-    init_workers(settings->jobs);
-    register_cleanup(close_workers);
-    ShellCommand newCommand = (ShellCommand){"cd build", "./", 0};
-    runCommand(newCommand);
+    unsigned int num_threads = open_workers(settings->jobs);
+    register_cleanup(kill_workers);
+
+    if(num_threads == 0) log_fatal(SYSTEM, "Could not open required threads.");
+    else log_msg("Opened %d of %d requested threads.", num_threads, settings->jobs);
+
+    Command newCommand = (Command){"cd build", "./", 0};
+    // runCommand(newCommand);
     // runPipe();
 
 
@@ -49,7 +53,7 @@ int main(int argc, char* argv[])
     log_msg("Hosting group is: %s", groupString);
 
     close_workers();
-    clear_config(settings);
+    clear_config();
     close_logging();
     return 0;
 }

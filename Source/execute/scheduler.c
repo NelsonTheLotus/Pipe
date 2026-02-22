@@ -1,76 +1,68 @@
 #include "scheduler.h"
 
-#include "worker.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "../global.h"
 #include "../util/util.h"
+#include "worker.h"
+
+#include <stdlib.h>
+#include <pthread.h>
 
 
 
-// ==== Static worker references ====
-static unsigned int numWorkers;
-static WorkerTracker* trackers = NULL;
-static CommandQueue command_queue;
+// MACROS 
 
 
-void init_workers(unsigned int numJobs)
+
+// STATIC
+
+static unsigned int worker_count = 0;
+static Worker *worker_pool = NULL;
+
+
+
+// INTERFACE
+
+unsigned int open_workers(unsigned int num_workers)
 {
-    // Setup queue
-    pthread_mutex_init(&command_queue.mutex_lock, NULL);
-    pthread_cond_init(&command_queue.not_full, NULL);
-    pthread_cond_init(&command_queue.not_empty, NULL);
-
-    if(numJobs == 0) numJobs = 1;
-    numWorkers = numJobs;
-
-    trackers = (WorkerTracker*)malloc(numWorkers*sizeof(WorkerTracker));
-    if(trackers == NULL)
-    {
-        log_fatal(SYSTEM, "Could not allocate required space for workers. Stop.");
-        return;
-    }
-    for(unsigned int workerID = 0; workerID < numWorkers; workerID++)
-    {
-        init_worker(&trackers[workerID], workerID);
-        assign_queue(&trackers[workerID], &command_queue);
-        bool success = run_worker(&trackers[workerID]);
-        if(success) log_msg("Thread %u initialized.", trackers[workerID].id);
-    }
-}
-
-
-CommandResult runCommand(const ShellCommand command)
-{
-    // char buff[256];
-    // sprintf(buff, "(placeholder) Running command: %s", command.cmd);
+    if(num_workers == 0) num_workers++;
+    if(worker_pool != NULL) close_workers();
+    else worker_pool = (Worker*)calloc(num_workers, sizeof(Worker));
     
-    Shell* executing_shell = &trackers[0].executor;
-    ShellCommand cmd = {"__terminate_cmd_1", "pwd", "/", 0};
-    //log_l(INFO, "(placeholder) Running command: %s with id: %s", cmd.cmd, cmd.id_glob);
-
-    if(executing_shell->shell_pid != -1)
+    worker_count = 0;
+    if(worker_pool == NULL)
     {
-        issue_command(executing_shell, cmd);
+        log_l(CRITICAL, "Could not allocate space for workers.");
+        return 0;   // error
     }
-    else log_l(CRITICAL, "Shell closed; could not run.");
-    return "Call issue command through thread only, it knows if the shell is running and will issue itself"
-    "also prevents race conditions on issuing command and closing thread (ifcond above is not atomic or thread-safe.)"
-    
-    // pass command on to the appropriate thread (calculations required).
-    // Thread will then manage the execution of the command with it's designated linked shell.
 
-    return (CommandResult){0, 0, NULL};
+    for(unsigned int w_id = 0; w_id < num_workers; w_id++)
+    {
+        Worker *new_worker = &worker_pool[worker_count];
+
+        worker_init(new_worker, w_id);
+        if(!worker_start(new_worker))
+            log_l(CRITICAL, "Failed to start new thread.");
+        else worker_count++;
+    }
+
+    return worker_count;
 }
 
 
 void close_workers(void)
 {
-    if(trackers == NULL) return;
-    for(unsigned int workerID = 0; workerID < numWorkers; workerID++)
+    for(unsigned int w_index = 0; w_index < worker_count; w_index++)
     {
-        stop_worker(&trackers[workerID], false);
-        destroy_worker(&trackers[workerID]);
-        log_msg("Thread %u destroyed.", trackers[workerID].id);
+        worker_request(&worker_pool[w_index], STOP);
+        pthread_join(worker_pool[w_index].handle, NULL);
     }
-    free(trackers);
 }
+
+
+void kill_workers(void)
+{
+    for(unsigned int w_index = 0; w_index < worker_count; w_index++)
+        worker_kill(&worker_pool[w_index]);
+}
+// TODO: Log exit codes of sub-shells
+// using the line: int shell_exit_code = worker_pool[w_index].executor.exit_code;   // exec struct is not destroyed. is still present

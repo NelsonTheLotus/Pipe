@@ -1,187 +1,155 @@
 #include "shell.h"
 
-#include "../util/util.h"
-
+#include <signal.h>
+#include <unistd.h>
 #include <fcntl.h>
-#include <string.h>
 #include <errno.h>
-#include <time.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/wait.h>
+#include <time.h>
 
 
-Shell new_shell(void)
+
+// INTERNAL
+
+static bool waitpid_timeout(pid_t pid, unsigned int timeout, int* status)
 {
-    // creates pipes
-    int write_pipe[2];
-    int read_pipe[2];
-    int err_pipe[2];
-    pipe(write_pipe);
-    pipe(read_pipe);
-    pipe(err_pipe);
+    time_t start = time(NULL);
+    pid_t retpid = 0;
 
-    // create the new shell
-    Shell newShell = {0};
-    newShell.shell_pid = fork();
-
-    // handle forked child
-    if(newShell.shell_pid == 0)
+    while(!(retpid = waitpid(pid, &status, WNOHANG)))
     {
-        dup2(write_pipe[0], STDIN_FILENO);
-        dup2(read_pipe[1], STDOUT_FILENO);
-        dup2(read_pipe[1], STDERR_FILENO);
+        if(time(NULL) - start >= timeout) break;
+    }
 
-        close(write_pipe[1]);   // avoid hanging reads because write is still open
-        close(read_pipe[0]);    // clean unused reading point
-        close(err_pipe[0]);     // clean unused reading point
-        
-        fcntl(err_pipe[1], F_SETFD, FD_CLOEXEC);    // Close write on exec success
-        setpgid(0, 0);  // make leader of a new process group ID
-        execl("/bin/sh", "sh", NULL);
+    if(retpid > 0) return true;
+    
+    *status = errno;
+    return false;
+}
+
+
+
+// INTERFACE
+
+Shell shell_init()
+{
+    Shell ret_shell = {
+        .pid = -1,
+        .input_pipe = -1,
+        .output_pipe = -1,
+        .halted = false,
+        .exit_code = 0
+    };
+
+    return ret_shell;
+}
+
+
+bool shell_start(Shell* s)
+{
+    if(s == NULL) return false;
+    if(s->pid != -1) return true;
+
+    // create pipes
+    int to_shell[2]; pipe(to_shell);
+    int from_shell[2]; pipe(from_shell);
+    int shell_err[2]; pipe(shell_err);
+
+    s->pid = fork();
+
+    if(s->pid == 0)     // child fork
+    {
+        close(to_shell[1]);     // close write end (avoid hanging read calls)
+        close(from_shell[0]);   // close read end
+        close(shell_err[0]);    // child is writting error
+
+        dup2(to_shell[0], STDIN_FILENO);
+        dup2(from_shell[1], STDOUT_FILENO);
+        dup2(from_shell[1], STDERR_FILENO);
+
+        fcntl(shell_err[1], F_SETFD, FD_CLOEXEC);   // Close write on exec success
+        setpgid(0, 0);                              // make leader of a new process group ID
+        execl("/bin/sh", "sh", NULL);               // does not continue if exec suceeds
 
         // on exec failure
         int err = errno;
-        write(err_pipe[1], &err, sizeof(err));
-        _exit(1);    // kill forked process, async-signal-safe
+        write(shell_err[1], &err, sizeof(err));
+        _exit(1);                                   // kill forked process, async-signal-safe
     }
 
-    // handle parent process
-    close(write_pipe[0]);
-    close(read_pipe[1]);
-    close(err_pipe[1]);
+    // parent fork
+    close(to_shell[0]);     // close read end
+    close(from_shell[1]);   // close write end (avoid hanging read calls)
+    close(shell_err[1]);    // parent reads err
 
-    newShell.shell_input = write_pipe[1];
-    newShell.shell_output = read_pipe[0];
+    s->input_pipe = to_shell[1];
+    s->output_pipe = from_shell[0];
+    s->halted = false;      // weather running or not, not halted
 
     // check that forked process spawned shell
     int err;
-    size_t bytes = read(err_pipe[0], &err, sizeof(err));
-    close(err_pipe[0]);
-    if(bytes == 0) return newShell; // success
+    size_t bytes = read(shell_err[0], &err, sizeof(err));
+    close(shell_err[0]);
+    if(bytes == 0) return true; // success
 
     // child failure
-    newShell.err_code = err;
-    waitpid(newShell.shell_pid, NULL, 0);
-    newShell.shell_pid = -1;
+    s->exit_code = err;
+    waitpid(s->pid, NULL, 0);
+    s->pid = -1;
 
-    close(newShell.shell_input);
-    close(newShell.shell_output);
-    newShell.shell_input = -1;
-    newShell.shell_output = -1;
+    close(s->input_pipe);
+    close(s->output_pipe);
+    s->input_pipe = -1;
+    s->output_pipe = -1;
 
-    return newShell;
     // no log, since inside thread
+    return false;
 }
 
 
-// returns -1 on error (errno = 0 -> timeout), exit code otherwise
-static int waitpid_timeout(pid_t pid, unsigned int timeout)
+void shell_halt(Shell* s)
 {
-    time_t start = time(NULL);
-    int status;
-    pid_t retpid = 0;
-    while(retpid == 0)
-    {
-        retpid = waitpid(pid, &status, WNOHANG);
-        if(retpid == -1) return -1;
-        if(time(NULL) - start >= timeout)
-        {
-            errno = 0;
-            return -1;
-        }   // timeout
-    }
-
-    return status;
-}
-
-
-// close open shell endpoints
-static void close_shell(Shell* shell)
-{
-    shell->shell_pid = -1;
-    close(shell->shell_input);
-    close(shell->shell_output);
-
+    if(s == NULL) return;
+    if(s->pid == -1) return;
+    kill(s->pid, SIGSTOP);  // halt execution
+    s->halted = true;
     return;
 }
 
-int stop_shell(Shell* shell, bool force)
+
+void shell_resume(Shell* s)
 {
-    if(shell == NULL) return 0;
-    int ret = 0;
-    if(!force)
-    {
-        const char* exit_cmd = "exit\n";
-        write(shell->shell_input, exit_cmd, strlen(exit_cmd));
-        close(shell->shell_input);
-        ret = waitpid_timeout(shell->shell_pid, GRACEFUL_TIMEOUT);
-    }
-
-    if(ret >= 0) {close_shell(shell); return ret;}
-    if(ret == -1 && errno != 0) {close_shell(shell); return errno;}
-    kill(-(shell->shell_pid), SIGTERM);  // graceful force
-    ret = waitpid_timeout(shell->shell_pid, FORCEFUL_TIMEOUT);
-
-    if(ret >= 0) {close_shell(shell); return ret;}
-    if(ret == -1 && errno != 0) {close_shell(shell); return errno;}
-    kill(-(shell->shell_pid), SIGKILL);
-    waitpid(shell->shell_pid, &ret, 0);
-    close_shell(shell);
-    return ret;
+    if(s == NULL) return;
+    if(s->pid == -1) return;
+    kill(s->pid, SIGCONT);  // continue execution
+    s->halted = false;
+    return;
 }
 
 
-// internal helper
-/* CommandResult capture_output(Shell* shell, const char* cmd_delimiter)
+bool shell_stop(Shell* s, unsigned int timeout)
 {
-    char* read_buf = (char*)malloc(4096*sizeof(char));
+    if(s == NULL) return true;
+    if(s->pid == -1) return true;
 
-    bool cmd_done = false;
-    int chars_read = 0;
-    while(!cmd_done)
+    write(s->input_pipe, "exit\n", 5);
+    return waitpid_timeout(s->pid, timeout, &s->exit_code);
+}
+
+
+void shell_kill(Shell* s, int timeout)
+{
+    if(s == NULL) return;
+    if(s->pid == -1) return;
+
+    if(timeout > 0)
     {
-        chars_read = read(shell->shell_output, read_buf, 4096);
-        if(chars_read == 0) break;  // EOF reached
-        if(chars_read == -1) break; // ERROR
-
-        char* line_start = read_buf;
-        char* newline_ptr = strchr(line_start, '\n');   // returns ptr to '\n'
-        if(newline_ptr == NULL) continue;
-        while(!strncmp(cmd_delimiter, line_start, newline_ptr-line_start))
-        {
-            line_start = newline_ptr+1;
-            newline_ptr = strchr(line_start, '\n');
-        }
-
+        kill(s->pid, SIGTERM);
+        if(waitpid_timeout(s->pid, timeout, &s->exit_code))
+            return;
     }
-
-    //read a buffer
-    // parse for delimiter
-    // if no delimiter found 
-    // read_buffer
-} */
-
-
-CommandResult issue_command(Shell* shell, ShellCommand command)
-{
-    log_msg("Executing command: %s", command.cmd);
-    fflush(stdout);
-    write(shell->shell_input, command.cmd, strlen(command.cmd));
-    write(shell->shell_input, "\n", 1);
-
-    size_t echo_len = sizeof(char)*(strlen(command.id_glob)+6);
-    char* echo_buf = (char*)malloc(echo_len);  // strlen + "echo " + \0
-    // TODO: graceful thread failure on fail
-    snprintf(echo_buf, echo_len, "echo %s", command.id_glob);
-
-    write(shell->shell_input, echo_buf, echo_len);
-    write(shell->shell_input, "\n", 1);
-    printf("File descriptor is %d\n", shell->shell_input);
     
-    //CommandResult result = capture_output(shell, command.id_glob);
-    CommandResult result;
-    read(shell->shell_output, result.output_buf, 4096);
-    printf("Output: %s\n", result.output_buf);
-    return result;
+    kill(-s->pid, SIGKILL);                 // send kill to gpid
+    waitpid(-s->pid, &s->exit_code, 0);
+    return;
 }
