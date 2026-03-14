@@ -26,7 +26,8 @@ unsigned int open_workers(unsigned int num_workers)
 {
     if(num_workers == 0) num_workers++;
     if(worker_pool != NULL) close_workers();
-    else worker_pool = (Worker*)calloc(num_workers, sizeof(Worker));
+    
+    worker_pool = (Worker*)calloc(num_workers, sizeof(Worker));
     
     worker_count = 0;
     if(worker_pool == NULL)
@@ -51,18 +52,26 @@ unsigned int open_workers(unsigned int num_workers)
 
 void close_workers(void)
 {
+    if(worker_pool == NULL) return;
     for(unsigned int w_index = 0; w_index < worker_count; w_index++)
     {
         worker_request(&worker_pool[w_index], STOP);
         pthread_join(worker_pool[w_index].handle, NULL);
     }
+
+    free(worker_pool);
+    worker_pool = NULL; // TODO
 }
 
 
 void kill_workers(void)
 {
+    if(worker_pool == NULL) return;
     for(unsigned int w_index = 0; w_index < worker_count; w_index++)
         worker_kill(&worker_pool[w_index]);
+
+    free(worker_pool);
+    worker_pool = NULL;
 }
 // TODO: Log exit codes of sub-shells
 // using the line: int shell_exit_code = worker_pool[w_index].executor.exit_code;   // exec struct is not destroyed. is still present

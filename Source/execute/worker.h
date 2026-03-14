@@ -22,8 +22,8 @@ typedef enum action
 {
     CONTINUE = 0,
     RESET = 1,
-    HALT = 2,
-    STOP = 3,
+    HALT = 2,       // Stop eating queue, remain in standby
+    STOP = 3,       // Stop entirely, required restart.
 } worker_action;
 
 
